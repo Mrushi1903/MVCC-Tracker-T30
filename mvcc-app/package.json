@@ -13,6 +13,7 @@
     "react": "^19",
     "react-dom": "^19",
     "@supabase/supabase-js": "^2.49.4",
+    "pdfjs-dist": "^3.11.174",
     "date-fns": "^3.6.0"
   },
   "devDependencies": {
