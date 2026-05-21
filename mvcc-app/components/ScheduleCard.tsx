@@ -2,11 +2,12 @@
 import { Match } from '@/lib/supabase'
 
 export default function ScheduleCard({ match }: { match: Match }) {
-  const date = new Date(match.date)
+  // Parse date without timezone conversion by splitting the string
+  const [year, month, day] = match.date.split('-').map(Number)
+  const date = new Date(year, month - 1, day)
   const today = new Date()
   today.setHours(0, 0, 0, 0)
-  const matchDate = new Date(match.date)
-  matchDate.setHours(0, 0, 0, 0)
+  const matchDate = new Date(year, month - 1, day)
 
   const isPast = matchDate < today
   const isToday = matchDate.getTime() === today.getTime()

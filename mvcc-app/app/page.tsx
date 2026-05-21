@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase, Player, Match } from '@/lib/supabase'
 import { calculatePoints } from '@/lib/points'
+import { parseCricClubCSV } from '@/lib/parseCSV'
 import Nav from '@/components/Nav'
 
 type PerfEntry = {
@@ -21,172 +22,6 @@ type PerfEntry = {
 
 const ADMIN_PASSWORD = 'mvcc2026'
 
-const PLAYER_NAMES: Record<string, string[]> = {
-  'Viswa': ['viswanath kasu', 'viswanath k'],
-  'Amar': ['amarendra nuvvala', 'amarendra n'],
-  'Rushi': ['rushi vardan reddy maddi', 'rushi vardan reddy', 'rushi vardan reddy m'],
-  'Akshay': ['akshay raju', 'akshay r'],
-  'Rupendra': ['rupendra chowdary palakurthi', 'rupendra chowdary', 'rupendra chowdary p'],
-  'Naveen': ['naveen kumar peddi', 'naveen kumar p'],
-  'Siddarth': ['siddharth chawla', 'siddharth c'],
-  'Rahul': ['rahul menon', 'rahul m'],
-  'Nithin': ['nithin reddy musku', 'nithin reddy', 'nithin reddy m'],
-  'Rohith': ['rohith maddipati', 'rohith m'],
-  'Koushik': ['kousik dhanekula', 'koushik d'],
-  'Naresh': ['naresh sunder'],
-  'Gani': ['siva ganesh asodi', 'gani siva ganesh', 'gani'],
-  'Mahendra': ['mahender bureddy'],
-  'Manoj': ['sai manoj kagolanu'],
-  'Raheel': ['raheel shaik'],
-  'Ravi': ['ravi kumar pattipati'],
-  'Yeswanth': ['yeshwanth kumar mutcherla'],
-  'Hemanth': ['hemanth kasa'],
-  'Karthik': ['karthik balakrishna'],
-  'Nikhil': ['nikhil pasula'],
-  'Saran': ['saran damacharla'],
-  'Suman': ['suman reddy gaddam'],
-}
-
-function findShortName(name: string): string | null {
-  const lower = name.toLowerCase().trim()
-  for (const [short, variants] of Object.entries(PLAYER_NAMES)) {
-    for (const v of variants) {
-      if (lower.includes(v) || v.includes(lower)) return short
-    }
-  }
-  return null
-}
-
-function parseOvers(s: string): number {
-  return parseFloat(s) || 0
-}
-
-function parseScorecardText(text: string, players: Player[], defaultEntries: PerfEntry[]): {
-  entries: PerfEntry[]
-  result: 'won' | 'lost' | 'tied' | 'no_result'
-  mvcc_score: string
-  opponent_score: string
-} {
-  const lines = text.split('\n').map(l => l.trim()).filter(Boolean)
-  const entries = defaultEntries.map(e => ({ ...e }))
-
-  const getEntry = (shortName: string) => {
-    const player = players.find(p => p.short_name === shortName)
-    if (!player) return null
-    return entries.find(e => e.player_id === player.id) || null
-  }
-
-  let result: 'won' | 'lost' | 'tied' | 'no_result' = 'no_result'
-  let mvcc_score = ''
-  let opponent_score = ''
-  let inMvccBatting = false
-  let inMvccBowling = false
-  let inOppBatting = false
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i]
-    const lower = line.toLowerCase()
-
-    // Result detection
-    if (lower.includes('result:')) {
-      const next = lines[i + 1] || ''
-      if (next.toLowerCase().includes('mavericks') && next.toLowerCase().includes('won')) result = 'won'
-      else if (next.toLowerCase().includes('won')) result = 'lost'
-      else if (next.toLowerCase().includes('tied')) result = 'tied'
-    }
-
-    // Scores
-    const mvccScoreMatch = line.match(/Mavericks Cricket Club MVCC\s+(\d+\/\d+\s*\([^)]+\))/i)
-    if (mvccScoreMatch) mvcc_score = mvccScoreMatch[1].trim()
-
-    const oppScoreMatch = line.match(/Michigan\s+\S+.*?\s+(\d+\/\d+\s*\([^)]+\))/i)
-    if (oppScoreMatch && !mvccScoreMatch) opponent_score = oppScoreMatch[1].trim()
-
-    // Section detection
-    if (lower.includes('mavericks cricket club mvcc - 1') || lower.includes('mavericks cricket club mvcc-1')) {
-      inMvccBatting = true; inMvccBowling = false; inOppBatting = false; continue
-    }
-    if (inMvccBatting && lower.includes('bowler') && lower.includes('overs')) {
-      inMvccBatting = false; inMvccBowling = true; continue
-    }
-    if (!inMvccBatting && !inMvccBowling && lower.match(/\w+ cc \w+.*- 1/) && !lower.includes('mvcc')) {
-      inOppBatting = true; inMvccBowling = false; continue
-    }
-    if (inOppBatting && lower.includes('bowler') && lower.includes('overs')) {
-      inOppBatting = false; continue
-    }
-
-    // MVCC Batting: "1 Viswanath Kasu ct... 6 6 1 0 100.00"
-    if (inMvccBatting && /^\d+\s+[A-Z]/.test(line)) {
-      const m = line.match(/^(\d+)\s+(.+?)\s+(\d+)\s+(\d+)\s+\d+\s+(\d+)\s+(\d+)\s+[\d.]+\s*$/)
-      if (m) {
-        const fullName = m[2].replace(/\s*(ct|ctw|b\s|lbw|ro|st\s|hit|retired|run out|not out|absent|\*).*/i, '').trim()
-        const short = findShortName(fullName)
-        if (short) {
-          const entry = getEntry(short)
-          if (entry) {
-            entry.runs = parseInt(m[3])
-            entry.balls_faced = parseInt(m[4])
-            // fours = m[5], sixes = m[6] — not stored but could be
-          }
-        }
-      }
-    }
-
-    // MVCC Bowling: "1 Rohith Maddipati 3.0 0 32 1 6 0 10.67"
-    if (inMvccBowling && /^\d+\s+[A-Z]/.test(line)) {
-      const m = line.match(/^(\d+)\s+(.+?)\s+([\d.]+)\s+(\d+)\s+(\d+)\s+(\d+)\s+\d+\s+\d+\s+[\d.]+\s*$/)
-      if (m) {
-        const short = findShortName(m[2])
-        if (short) {
-          const entry = getEntry(short)
-          if (entry) {
-            entry.overs_bowled = parseOvers(m[3])
-            entry.runs_conceded = parseInt(m[5])
-            entry.wickets = parseInt(m[6])
-          }
-        }
-      }
-    }
-
-    // Opponent batting — catch/stumping/runout by MVCC player
-    if (inOppBatting) {
-      // ct (AKSHAY R) BowlerName
-      const catchM = line.match(/ct\s+\(([^)]+)\)/i)
-      if (catchM) {
-        const short = findShortName(catchM[1])
-        if (short) { const e = getEntry(short); if (e) e.catches += 1 }
-      }
-      // ctw (keeper)
-      const ctwM = line.match(/ctw\s+\(([^)]+)\)/i)
-      if (ctwM) {
-        const short = findShortName(ctwM[1])
-        if (short) { const e = getEntry(short); if (e) e.stumpings += 1 }
-      }
-      // ro FielderName
-      const roM = line.match(/\bro\b\s+([A-Za-z\s]+?)(?:\s+\d|$)/i)
-      if (roM) {
-        const short = findShortName(roM[1].trim())
-        if (short) { const e = getEntry(short); if (e) e.runout_fielder += 1 }
-      }
-    }
-  }
-
-  // Auto POTM: highest scorer
-  let topRuns = 0
-  let topShort = ''
-  for (const p of players) {
-    const e = getEntry(p.short_name)
-    if (e && e.runs > topRuns) { topRuns = e.runs; topShort = p.short_name }
-  }
-  if (topShort && topRuns >= 30) {
-    const e = getEntry(topShort)
-    if (e) e.is_potm = true
-  }
-
-  return { entries, result, mvcc_score, opponent_score }
-}
-
 export default function AdminPage() {
   const [authed, setAuthed] = useState(false)
   const [pw, setPw] = useState('')
@@ -202,6 +37,7 @@ export default function AdminPage() {
   const [saved, setSaved] = useState(false)
   const [parsing, setParsing] = useState(false)
   const [parseMsg, setParseMsg] = useState('')
+  const [parsedCount, setParsedCount] = useState(0)
   const fileRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => { if (authed) fetchData() }, [authed])
@@ -220,34 +56,47 @@ export default function AdminPage() {
     if (m) setMatches(m)
   }
 
-  async function handlePdfUpload(file: File) {
+  async function handleCSVUpload(file: File) {
     if (!file) return
     setParsing(true)
-    setParseMsg('Reading PDF...')
+    setParseMsg('Reading CSV...')
+    setParsedCount(0)
     try {
-      // Dynamic import of pdfjs
-      const pdfjsLib = await import('pdfjs-dist')
-      pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js`
+      const text = await file.text()
+      const parsed = parseCricClubCSV(text)
 
-      const arrayBuffer = await file.arrayBuffer()
-      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise
-      let fullText = ''
-      for (let i = 1; i <= pdf.numPages; i++) {
-        const page = await pdf.getPage(i)
-        const content = await page.getTextContent()
-        fullText += content.items.map((item: any) => item.str).join(' ') + '\n'
+      // Map parsed players back to entries using player IDs
+      const newEntries = entries.map(e => ({ ...e }))
+      let count = 0
+
+      for (const parsedPlayer of parsed.players) {
+        const player = players.find(p => p.short_name === parsedPlayer.short_name)
+        if (!player) continue
+        const entry = newEntries.find(e => e.player_id === player.id)
+        if (!entry) continue
+
+        entry.runs = parsedPlayer.runs
+        entry.balls_faced = parsedPlayer.balls_faced
+        entry.overs_bowled = parsedPlayer.overs_bowled
+        entry.runs_conceded = parsedPlayer.runs_conceded
+        entry.wickets = parsedPlayer.wickets
+        entry.catches = parsedPlayer.catches
+        entry.runout_fielder = parsedPlayer.runout_fielder
+        entry.runout_helper = parsedPlayer.runout_helper
+        entry.stumpings = parsedPlayer.stumpings
+        entry.is_potm = parsedPlayer.is_potm
+        count++
       }
 
-      setParseMsg('Parsing scorecard...')
-      const parsed = parseScorecardText(fullText, players, entries)
-      setEntries(parsed.entries)
+      setEntries(newEntries)
       setMatchResult(parsed.result)
       if (parsed.mvcc_score) setMvccScore(parsed.mvcc_score)
       if (parsed.opponent_score) setOpponentScore(parsed.opponent_score)
-      setParseMsg('✅ Parsed! Review stats and save.')
+      setParsedCount(count)
+      setParseMsg(`✅ Parsed ${count} players! Review and save.`)
     } catch (err) {
       console.error(err)
-      setParseMsg('⚠️ Could not auto-parse. Please enter stats manually.')
+      setParseMsg('⚠️ Error parsing CSV. Check the file format.')
     }
     setParsing(false)
   }
@@ -264,7 +113,9 @@ export default function AdminPage() {
       mvcc_score: mvccScore, opponent_score: opponentScore,
       potm_player_id: entries.find(e => e.is_potm)?.player_id ?? null,
     }).eq('id', selectedMatch)
+
     await supabase.from('performances').delete().eq('match_id', selectedMatch)
+
     const toInsert = entries.filter(e =>
       e.runs > 0 || e.wickets > 0 || e.catches > 0 || e.runout_fielder > 0 ||
       e.runout_helper > 0 || e.stumpings > 0 || e.is_potm || e.overs_bowled > 0
@@ -286,6 +137,7 @@ export default function AdminPage() {
         total_points: pts.total_points,
       }
     })
+
     if (toInsert.length > 0) await supabase.from('performances').insert(toInsert)
     setSaving(false); setSaved(true)
     setTimeout(() => setSaved(false), 3000)
@@ -329,7 +181,7 @@ export default function AdminPage() {
 
         {/* Match selector */}
         <div className="rounded-xl p-5 mb-6" style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
-          <div className="font-mono text-xs tracking-[3px] uppercase mb-3" style={{ color: 'var(--text3)' }}>Select Match</div>
+          <div className="font-mono text-xs tracking-[3px] uppercase mb-3" style={{ color: 'var(--text3)' }}>1. Select Match</div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
             {matches.map(m => (
               <button key={m.id} onClick={() => setSelectedMatch(m.id)}
@@ -345,31 +197,34 @@ export default function AdminPage() {
 
         {selectedMatch && (
           <>
-            {/* PDF Upload */}
+            {/* CSV Upload */}
             <div className="rounded-xl p-5 mb-6" style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
-              <div className="font-mono text-xs tracking-[3px] uppercase mb-3" style={{ color: 'var(--text3)' }}>Upload Scorecard PDF</div>
+              <div className="font-mono text-xs tracking-[3px] uppercase mb-1" style={{ color: 'var(--text3)' }}>2. Upload CricClub CSV</div>
+              <p className="text-xs mb-3" style={{ color: 'var(--text3)' }}>
+                From CricClub scorecard page → click <strong style={{ color: 'var(--text2)' }}>Export to Excel/CSV</strong> → upload here
+              </p>
               <div
                 className="border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all"
-                style={{ borderColor: 'var(--border2)', background: 'var(--bg3)' }}
+                style={{ borderColor: parsedCount > 0 ? 'var(--green)' : 'var(--border2)', background: 'var(--bg3)' }}
                 onClick={() => fileRef.current?.click()}
                 onDragOver={e => e.preventDefault()}
-                onDrop={e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) handlePdfUpload(f) }}
+                onDrop={e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) handleCSVUpload(f) }}
               >
-                <div className="text-4xl mb-3">📄</div>
+                <div className="text-4xl mb-3">{parsedCount > 0 ? '✅' : '📊'}</div>
                 <div className="font-display text-xl tracking-wider mb-1" style={{ color: 'var(--text)' }}>
-                  {parsing ? 'PARSING...' : 'DROP PDF HERE'}
+                  {parsing ? 'PARSING...' : parsedCount > 0 ? `${parsedCount} PLAYERS LOADED` : 'DROP CSV HERE'}
                 </div>
-                <div className="font-mono text-xs" style={{ color: 'var(--text3)' }}>
-                  {parseMsg || 'or click to browse • CricClub scorecard PDF'}
+                <div className="font-mono text-xs" style={{ color: parsedCount > 0 ? 'var(--green)' : 'var(--text3)' }}>
+                  {parseMsg || 'or click to browse • viewScorecardExcel.csv'}
                 </div>
-                <input ref={fileRef} type="file" accept=".pdf" className="hidden"
-                  onChange={e => { const f = e.target.files?.[0]; if (f) handlePdfUpload(f) }} />
+                <input ref={fileRef} type="file" accept=".csv" className="hidden"
+                  onChange={e => { const f = e.target.files?.[0]; if (f) handleCSVUpload(f) }} />
               </div>
             </div>
 
             {/* Match result */}
             <div className="rounded-xl p-5 mb-6" style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
-              <div className="font-mono text-xs tracking-[3px] uppercase mb-3" style={{ color: 'var(--text3)' }}>Match Result</div>
+              <div className="font-mono text-xs tracking-[3px] uppercase mb-3" style={{ color: 'var(--text3)' }}>3. Confirm Match Result</div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
                 {(['won', 'lost', 'tied', 'no_result'] as const).map(r => (
                   <button key={r} onClick={() => setMatchResult(r)}
@@ -396,6 +251,7 @@ export default function AdminPage() {
             </div>
 
             {/* Player stats */}
+            <div className="font-mono text-xs tracking-[3px] uppercase mb-3" style={{ color: 'var(--text3)' }}>4. Review & Edit Stats</div>
             {[{ label: '🟠 MIGHTY MAVERICKS', players: mmPlayers }, { label: '🔵 HELL BOYS', players: hbPlayers }].map(team => (
               <div key={team.label} className="rounded-xl overflow-hidden mb-6" style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
                 <div className="px-5 py-3 font-display text-xl tracking-wider" style={{ background: 'var(--bg3)', borderBottom: '1px solid var(--border)', color: 'var(--text)' }}>{team.label}</div>
@@ -412,10 +268,15 @@ export default function AdminPage() {
                       {team.players.map(player => {
                         const entry = entries.find(e => e.player_id === player.id)!
                         if (!entry) return null
-                        const pts = calculatePoints({ runs: entry.runs, balls_faced: entry.balls_faced, overs_bowled: entry.overs_bowled, runs_conceded: entry.runs_conceded, wickets: entry.wickets, catches: entry.catches, runout_fielder: entry.runout_fielder, runout_helper: entry.runout_helper, stumpings: entry.stumpings, is_potm: entry.is_potm })
+                        const pts = calculatePoints({
+                          runs: entry.runs, balls_faced: entry.balls_faced, overs_bowled: entry.overs_bowled,
+                          runs_conceded: entry.runs_conceded, wickets: entry.wickets, catches: entry.catches,
+                          runout_fielder: entry.runout_fielder, runout_helper: entry.runout_helper,
+                          stumpings: entry.stumpings, is_potm: entry.is_potm,
+                        })
                         const hasStats = entry.runs > 0 || entry.wickets > 0 || entry.catches > 0 || entry.overs_bowled > 0
                         return (
-                          <tr key={player.id} style={{ borderBottom: '1px solid var(--border)', background: hasStats ? '#ffffff05' : 'transparent' }}>
+                          <tr key={player.id} style={{ borderBottom: '1px solid var(--border)', background: hasStats ? '#ffffff06' : 'transparent' }}>
                             <td className="px-3 py-2">
                               <div className="font-medium" style={{ color: 'var(--text)' }}>{player.short_name}</div>
                               <div className="font-display text-xs" style={{ color: pts.total_points > 0 ? 'var(--mm)' : 'var(--text3)' }}>{pts.total_points} pts</div>
@@ -426,7 +287,7 @@ export default function AdminPage() {
                                   value={entry[field] as number}
                                   onChange={e => updateEntry(player.id, field, parseFloat(e.target.value) || 0)}
                                   className="w-14 px-2 py-1.5 rounded-lg text-center font-mono text-xs outline-none"
-                                  style={{ background: (entry[field] as number) > 0 ? 'var(--bg4)' : 'var(--bg3)', border: `1px solid ${(entry[field] as number) > 0 ? 'var(--border2)' : 'var(--border)'}`, color: 'var(--text)' }} />
+                                  style={{ background: (entry[field] as number) > 0 ? '#ffffff10' : 'var(--bg3)', border: `1px solid ${(entry[field] as number) > 0 ? 'var(--border2)' : 'var(--border)'}`, color: 'var(--text)' }} />
                               </td>
                             ))}
                             <td className="px-3 py-2">

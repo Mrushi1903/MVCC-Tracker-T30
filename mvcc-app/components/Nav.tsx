@@ -19,10 +19,7 @@ export default function Nav() {
       <div className="max-w-5xl mx-auto px-4 flex items-center justify-between h-14">
         <Link href="/" className="flex items-center gap-2">
           <span className="text-xl">🏏</span>
-          <span
-            className="font-display text-lg tracking-wider"
-            style={{ color: 'var(--text)' }}
-          >
+          <span className="font-display text-lg tracking-wider" style={{ color: 'var(--text)' }}>
             MVCC <span style={{ color: 'var(--text3)' }}>T30</span>
           </span>
         </Link>
@@ -38,17 +35,15 @@ export default function Nav() {
           >
             Standings
           </Link>
-          <Link
-            href="/admin"
-            className="px-3 py-1.5 rounded-lg text-xs font-mono tracking-widest transition-all"
-            style={{
-              color: 'var(--text3)',
-              border: '1px solid var(--border)',
-              background: 'transparent',
-            }}
-          >
-            ADMIN
-          </Link>
+          {/* Admin link — only show when already on admin page */}
+          {path === '/admin' && (
+            <span
+              className="px-3 py-1.5 rounded-lg text-xs font-mono tracking-widest"
+              style={{ color: 'var(--mm)', border: '1px solid var(--mm-border)', background: 'var(--mm-dim)' }}
+            >
+              ADMIN
+            </span>
+          )}
         </div>
       </div>
     </nav>
