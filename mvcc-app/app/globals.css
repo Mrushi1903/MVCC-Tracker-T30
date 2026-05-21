@@ -1,0 +1,126 @@
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #080b10;
+  --bg2: #0d1117;
+  --bg3: #161b22;
+  --bg4: #1c2230;
+  --border: #21262d;
+  --border2: #30363d;
+  --mm: #f97316;
+  --mm-dim: #f9731620;
+  --mm-border: #f9731640;
+  --hb: #38bdf8;
+  --hb-dim: #38bdf820;
+  --hb-border: #38bdf840;
+  --gold: #fbbf24;
+  --green: #22c55e;
+  --red: #f43f5e;
+  --text: #e6edf3;
+  --text2: #8b949e;
+  --text3: #6e7681;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Outfit', sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg2); }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text3); }
+
+/* Selection */
+::selection { background: var(--mm-dim); color: var(--mm); }
+
+/* Utility classes */
+.font-display { font-family: 'Bebas Neue', cursive; }
+.font-mono { font-family: 'JetBrains Mono', monospace; }
+
+.text-mm { color: var(--mm); }
+.text-hb { color: var(--hb); }
+.text-gold { color: var(--gold); }
+.text-green { color: var(--green); }
+.text-red { color: var(--red); }
+.text-muted { color: var(--text2); }
+.text-dim { color: var(--text3); }
+
+.bg-mm { background: var(--mm-dim); border-color: var(--mm-border); }
+.bg-hb { background: var(--hb-dim); border-color: var(--hb-border); }
+
+/* Grain overlay */
+.grain::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 9999;
+}
+
+/* Animated gradient border */
+@keyframes borderFlow {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.gradient-border {
+  background: linear-gradient(var(--bg3), var(--bg3)) padding-box,
+    linear-gradient(135deg, var(--mm), transparent, var(--hb)) border-box;
+  border: 1px solid transparent;
+}
+
+/* Card hover lift */
+.card-hover {
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+}
+
+/* Fade in animation */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.fade-in { animation: fadeInUp 0.4s ease forwards; }
+.fade-in-1 { animation: fadeInUp 0.4s ease 0.1s forwards; opacity: 0; }
+.fade-in-2 { animation: fadeInUp 0.4s ease 0.2s forwards; opacity: 0; }
+.fade-in-3 { animation: fadeInUp 0.4s ease 0.3s forwards; opacity: 0; }
+.fade-in-4 { animation: fadeInUp 0.4s ease 0.4s forwards; opacity: 0; }
+
+/* Pulse dot */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+.pulse { animation: pulse 2s ease infinite; }
+
+/* Number counter animation */
+@keyframes countUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
