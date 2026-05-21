@@ -35,7 +35,19 @@ export default function Nav() {
           >
             Standings
           </Link>
-          {/* Admin link — only show when already on admin page */}
+
+          <Link
+            href="/schedule"
+            className="px-3 py-1.5 rounded-lg text-sm font-medium transition-all"
+            style={{
+              color: path === '/schedule' ? 'var(--text)' : 'var(--text3)',
+              background: path === '/schedule' ? 'var(--bg3)' : 'transparent',
+            }}
+          >
+            Schedule
+          </Link>
+
+          {/* Admin badge — only visible when on admin page */}
           {path === '/admin' && (
             <span
               className="px-3 py-1.5 rounded-lg text-xs font-mono tracking-widest"

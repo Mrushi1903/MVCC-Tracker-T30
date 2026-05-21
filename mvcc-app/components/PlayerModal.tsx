@@ -187,10 +187,14 @@ export default function PlayerModal({
                     <div>
                       <div className="font-mono text-xs" style={{ color: 'var(--text3)' }}>
                         Match {perf.match?.match_number} ·{' '}
-                        {new Date(perf.match?.date).toLocaleDateString('en-US', {
-                          month: 'short',
-                          day: 'numeric',
-                        })}
+                        {/* Parse date parts directly to avoid UTC-to-local timezone shift */}
+                        {(() => {
+                          const [y, mo, d] = (perf.match?.date || '').split('-').map(Number)
+                          return new Date(y, mo - 1, d).toLocaleDateString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                          })
+                        })()}
                       </div>
                       <div className="font-medium text-sm mt-0.5" style={{ color: 'var(--text)' }}>
                         vs {perf.match?.opponent}

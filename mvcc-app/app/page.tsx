@@ -1,319 +1,264 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
-import { supabase, Player, Match } from '@/lib/supabase'
+import { useState, useEffect } from 'react'
+import { supabase } from '@/lib/supabase'
 import { calculatePoints } from '@/lib/points'
-import { parseCricClubCSV } from '@/lib/parseCSV'
 import Nav from '@/components/Nav'
+import TeamBanner from '@/components/TeamBanner'
+import PlayerModal from '@/components/PlayerModal'
 
-type PerfEntry = {
-  player_id: number
-  runs: number
-  balls_faced: number
-  overs_bowled: number
-  runs_conceded: number
-  wickets: number
-  catches: number
-  runout_fielder: number
-  runout_helper: number
-  stumpings: number
-  is_potm: boolean
+type PlayerRow = {
+  id: number
+  name: string
+  short_name: string
+  team: 'MM' | 'HB'
+  jersey_number: number
+  total_points: number
+  total_runs: number
+  total_wickets: number
+  total_catches: number
+  matches_played: number
 }
 
-const ADMIN_PASSWORD = 'mvcc2026'
+export default function HomePage() {
+  const [players, setPlayers] = useState<PlayerRow[]>([])
+  const [loading, setLoading] = useState(true)
+  const [selectedPlayer, setSelectedPlayer] = useState<PlayerRow | null>(null)
+  const [filter, setFilter] = useState<'all' | 'MM' | 'HB'>('all')
 
-export default function AdminPage() {
-  const [authed, setAuthed] = useState(false)
-  const [pw, setPw] = useState('')
-  const [pwError, setPwError] = useState(false)
-  const [players, setPlayers] = useState<Player[]>([])
-  const [matches, setMatches] = useState<Match[]>([])
-  const [selectedMatch, setSelectedMatch] = useState<number | null>(null)
-  const [matchResult, setMatchResult] = useState<'won' | 'lost' | 'tied' | 'no_result'>('won')
-  const [mvccScore, setMvccScore] = useState('')
-  const [opponentScore, setOpponentScore] = useState('')
-  const [entries, setEntries] = useState<PerfEntry[]>([])
-  const [saving, setSaving] = useState(false)
-  const [saved, setSaved] = useState(false)
-  const [parsing, setParsing] = useState(false)
-  const [parseMsg, setParseMsg] = useState('')
-  const [parsedCount, setParsedCount] = useState(0)
-  const fileRef = useRef<HTMLInputElement>(null)
+  useEffect(() => {
+    fetchLeaderboard()
+  }, [])
 
-  useEffect(() => { if (authed) fetchData() }, [authed])
+  async function fetchLeaderboard() {
+    setLoading(true)
 
-  async function fetchData() {
-    const { data: p } = await supabase.from('players').select('*').order('team').order('name')
-    const { data: m } = await supabase.from('matches').select('*').order('date')
-    if (p) {
-      setPlayers(p)
-      setEntries(p.map((pl: Player) => ({
-        player_id: pl.id, runs: 0, balls_faced: 0, overs_bowled: 0,
-        runs_conceded: 0, wickets: 0, catches: 0, runout_fielder: 0,
-        runout_helper: 0, stumpings: 0, is_potm: false,
-      })))
-    }
-    if (m) setMatches(m)
-  }
+    // Fetch all players
+    const { data: rawPlayers } = await supabase
+      .from('players')
+      .select('*')
+      .order('team')
+      .order('name')
 
-  async function handleCSVUpload(file: File) {
-    if (!file) return
-    setParsing(true)
-    setParseMsg('Reading CSV...')
-    setParsedCount(0)
-    try {
-      const text = await file.text()
-      const parsed = parseCricClubCSV(text)
+    if (!rawPlayers) { setLoading(false); return }
 
-      // Map parsed players back to entries using player IDs
-      const newEntries = entries.map(e => ({ ...e }))
-      let count = 0
+    // Fetch all performances
+    const { data: perfs } = await supabase
+      .from('performances')
+      .select('*')
 
-      for (const parsedPlayer of parsed.players) {
-        const player = players.find(p => p.short_name === parsedPlayer.short_name)
-        if (!player) continue
-        const entry = newEntries.find(e => e.player_id === player.id)
-        if (!entry) continue
-
-        entry.runs = parsedPlayer.runs
-        entry.balls_faced = parsedPlayer.balls_faced
-        entry.overs_bowled = parsedPlayer.overs_bowled
-        entry.runs_conceded = parsedPlayer.runs_conceded
-        entry.wickets = parsedPlayer.wickets
-        entry.catches = parsedPlayer.catches
-        entry.runout_fielder = parsedPlayer.runout_fielder
-        entry.runout_helper = parsedPlayer.runout_helper
-        entry.stumpings = parsedPlayer.stumpings
-        entry.is_potm = parsedPlayer.is_potm
-        count++
-      }
-
-      setEntries(newEntries)
-      setMatchResult(parsed.result)
-      if (parsed.mvcc_score) setMvccScore(parsed.mvcc_score)
-      if (parsed.opponent_score) setOpponentScore(parsed.opponent_score)
-      setParsedCount(count)
-      setParseMsg(`✅ Parsed ${count} players! Review and save.`)
-    } catch (err) {
-      console.error(err)
-      setParseMsg('⚠️ Error parsing CSV. Check the file format.')
-    }
-    setParsing(false)
-  }
-
-  function updateEntry(playerId: number, field: keyof PerfEntry, value: number | boolean) {
-    setEntries(prev => prev.map(e => e.player_id === playerId ? { ...e, [field]: value } : e))
-  }
-
-  async function handleSave() {
-    if (!selectedMatch) return alert('Select a match first')
-    setSaving(true)
-    await supabase.from('matches').update({
-      is_played: true, result: matchResult,
-      mvcc_score: mvccScore, opponent_score: opponentScore,
-      potm_player_id: entries.find(e => e.is_potm)?.player_id ?? null,
-    }).eq('id', selectedMatch)
-
-    await supabase.from('performances').delete().eq('match_id', selectedMatch)
-
-    const toInsert = entries.filter(e =>
-      e.runs > 0 || e.wickets > 0 || e.catches > 0 || e.runout_fielder > 0 ||
-      e.runout_helper > 0 || e.stumpings > 0 || e.is_potm || e.overs_bowled > 0
-    ).map(e => {
-      const pts = calculatePoints({
-        runs: e.runs, balls_faced: e.balls_faced, overs_bowled: e.overs_bowled,
-        runs_conceded: e.runs_conceded, wickets: e.wickets, catches: e.catches,
-        runout_fielder: e.runout_fielder, runout_helper: e.runout_helper,
-        stumpings: e.stumpings, is_potm: e.is_potm,
+    // Aggregate per player
+    const playerMap = new Map<number, PlayerRow>()
+    for (const pl of rawPlayers) {
+      playerMap.set(pl.id, {
+        id: pl.id,
+        name: pl.name,
+        short_name: pl.short_name,
+        team: pl.team,
+        jersey_number: pl.jersey_number,
+        total_points: 0,
+        total_runs: 0,
+        total_wickets: 0,
+        total_catches: 0,
+        matches_played: 0,
       })
-      return {
-        match_id: selectedMatch, player_id: e.player_id,
-        runs: e.runs, balls_faced: e.balls_faced, overs_bowled: e.overs_bowled,
-        runs_conceded: e.runs_conceded, wickets: e.wickets, catches: e.catches,
-        runout_fielder: e.runout_fielder, runout_helper: e.runout_helper,
-        stumpings: e.stumpings, is_potm: e.is_potm,
-        batting_points: pts.batting_points, bowling_points: pts.bowling_points,
-        fielding_points: pts.fielding_points, bonus_points: pts.bonus_points,
-        total_points: pts.total_points,
+    }
+
+    if (perfs) {
+      for (const perf of perfs) {
+        const p = playerMap.get(perf.player_id)
+        if (!p) continue
+        const pts = calculatePoints({
+          runs: perf.runs,
+          balls_faced: perf.balls_faced,
+          overs_bowled: perf.overs_bowled,
+          runs_conceded: perf.runs_conceded,
+          wickets: perf.wickets,
+          catches: perf.catches,
+          runout_fielder: perf.runout_fielder,
+          runout_helper: perf.runout_helper,
+          stumpings: perf.stumpings,
+          is_potm: perf.is_potm,
+        })
+        p.total_points += pts.total_points
+        p.total_runs += perf.runs
+        p.total_wickets += perf.wickets
+        p.total_catches += perf.catches
+        p.matches_played += 1
       }
-    })
+    }
 
-    if (toInsert.length > 0) await supabase.from('performances').insert(toInsert)
-    setSaving(false); setSaved(true)
-    setTimeout(() => setSaved(false), 3000)
-  }
-
-  if (!authed) {
-    return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg)' }}>
-        <div className="w-full max-w-sm p-8 rounded-2xl" style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
-          <div className="text-center mb-8">
-            <div className="text-4xl mb-3">🔒</div>
-            <div className="font-display text-3xl tracking-wider" style={{ color: 'var(--text)' }}>ADMIN ACCESS</div>
-            <p className="font-mono text-xs mt-2 tracking-widest" style={{ color: 'var(--text3)' }}>MVCC TOURNAMENT 2026</p>
-          </div>
-          <input type="password" placeholder="Enter password" value={pw}
-            onChange={e => { setPw(e.target.value); setPwError(false) }}
-            onKeyDown={e => { if (e.key === 'Enter') { if (pw === ADMIN_PASSWORD) setAuthed(true); else setPwError(true) } }}
-            className="w-full px-4 py-3 rounded-xl text-sm font-mono mb-3 outline-none"
-            style={{ background: 'var(--bg3)', border: `1px solid ${pwError ? 'var(--red)' : 'var(--border)'}`, color: 'var(--text)' }}
-          />
-          {pwError && <p className="font-mono text-xs text-center mb-3" style={{ color: 'var(--red)' }}>Wrong password</p>}
-          <button onClick={() => { if (pw === ADMIN_PASSWORD) setAuthed(true); else setPwError(true) }}
-            className="w-full py-3 rounded-xl font-display text-lg tracking-wider"
-            style={{ background: 'var(--mm)', color: 'white', cursor: 'pointer' }}>ENTER</button>
-        </div>
-      </div>
+    const sorted = Array.from(playerMap.values()).sort(
+      (a, b) => b.total_points - a.total_points
     )
+    setPlayers(sorted)
+    setLoading(false)
   }
 
   const mmPlayers = players.filter(p => p.team === 'MM')
   const hbPlayers = players.filter(p => p.team === 'HB')
+  const mmTotal = mmPlayers.reduce((s, p) => s + p.total_points, 0)
+  const hbTotal = hbPlayers.reduce((s, p) => s + p.total_points, 0)
+
+  const displayed = filter === 'all' ? players : players.filter(p => p.team === filter)
 
   return (
     <div style={{ background: 'var(--bg)', minHeight: '100vh' }}>
       <Nav />
       <main className="max-w-5xl mx-auto px-4 py-8">
+        {/* Header */}
         <div className="mb-8">
-          <p className="font-mono text-xs tracking-[4px] uppercase mb-2" style={{ color: 'var(--text3)' }}>Admin Panel</p>
-          <h1 className="font-display text-5xl tracking-wider" style={{ color: 'var(--text)' }}>ENTER SCORECARD</h1>
+          <p className="font-mono text-xs tracking-[4px] uppercase mb-2" style={{ color: 'var(--text3)' }}>
+            Season 2026 · T30 Internal
+          </p>
+          <h1 className="font-display text-5xl tracking-wider" style={{ color: 'var(--text)' }}>
+            STANDINGS
+          </h1>
         </div>
 
-        {/* Match selector */}
-        <div className="rounded-xl p-5 mb-6" style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
-          <div className="font-mono text-xs tracking-[3px] uppercase mb-3" style={{ color: 'var(--text3)' }}>1. Select Match</div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-            {matches.map(m => (
-              <button key={m.id} onClick={() => setSelectedMatch(m.id)}
-                className="p-3 rounded-xl text-left transition-all"
-                style={{ background: selectedMatch === m.id ? 'var(--mm-dim)' : 'var(--bg3)', border: `1px solid ${selectedMatch === m.id ? 'var(--mm-border)' : 'var(--border)'}`, cursor: 'pointer' }}>
-                <div className="font-display text-lg" style={{ color: selectedMatch === m.id ? 'var(--mm)' : 'var(--text)' }}>Match {m.match_number}</div>
-                <div className="font-mono text-xs mt-0.5" style={{ color: 'var(--text3)' }}>vs {m.opponent.split(' ').slice(0, 2).join(' ')}</div>
-                <div className="font-mono text-xs" style={{ color: 'var(--text3)' }}>{new Date(m.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</div>
-              </button>
-            ))}
-          </div>
-        </div>
+        {/* Team banner */}
+        <TeamBanner mmTotal={mmTotal} hbTotal={hbTotal} />
 
-        {selectedMatch && (
-          <>
-            {/* CSV Upload */}
-            <div className="rounded-xl p-5 mb-6" style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
-              <div className="font-mono text-xs tracking-[3px] uppercase mb-1" style={{ color: 'var(--text3)' }}>2. Upload CricClub CSV</div>
-              <p className="text-xs mb-3" style={{ color: 'var(--text3)' }}>
-                From CricClub scorecard page → click <strong style={{ color: 'var(--text2)' }}>Export to Excel/CSV</strong> → upload here
-              </p>
-              <div
-                className="border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all"
-                style={{ borderColor: parsedCount > 0 ? 'var(--green)' : 'var(--border2)', background: 'var(--bg3)' }}
-                onClick={() => fileRef.current?.click()}
-                onDragOver={e => e.preventDefault()}
-                onDrop={e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) handleCSVUpload(f) }}
-              >
-                <div className="text-4xl mb-3">{parsedCount > 0 ? '✅' : '📊'}</div>
-                <div className="font-display text-xl tracking-wider mb-1" style={{ color: 'var(--text)' }}>
-                  {parsing ? 'PARSING...' : parsedCount > 0 ? `${parsedCount} PLAYERS LOADED` : 'DROP CSV HERE'}
-                </div>
-                <div className="font-mono text-xs" style={{ color: parsedCount > 0 ? 'var(--green)' : 'var(--text3)' }}>
-                  {parseMsg || 'or click to browse • viewScorecardExcel.csv'}
-                </div>
-                <input ref={fileRef} type="file" accept=".csv" className="hidden"
-                  onChange={e => { const f = e.target.files?.[0]; if (f) handleCSVUpload(f) }} />
-              </div>
-            </div>
-
-            {/* Match result */}
-            <div className="rounded-xl p-5 mb-6" style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
-              <div className="font-mono text-xs tracking-[3px] uppercase mb-3" style={{ color: 'var(--text3)' }}>3. Confirm Match Result</div>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
-                {(['won', 'lost', 'tied', 'no_result'] as const).map(r => (
-                  <button key={r} onClick={() => setMatchResult(r)}
-                    className="py-2 px-4 rounded-xl font-mono text-xs tracking-widest uppercase transition-all"
-                    style={{ background: matchResult === r ? 'var(--bg3)' : 'transparent', border: `1px solid ${matchResult === r ? 'var(--border2)' : 'var(--border)'}`, color: matchResult === r ? (r === 'won' ? 'var(--green)' : r === 'lost' ? 'var(--red)' : 'var(--text)') : 'var(--text3)', cursor: 'pointer' }}>
-                    {r.replace('_', ' ')}
-                  </button>
-                ))}
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="font-mono text-xs tracking-widest block mb-1.5" style={{ color: 'var(--text3)' }}>MVCC SCORE</label>
-                  <input value={mvccScore} onChange={e => setMvccScore(e.target.value)} placeholder="e.g. 182/7 (26.3)"
-                    className="w-full px-3 py-2 rounded-xl text-sm font-mono outline-none"
-                    style={{ background: 'var(--bg3)', border: '1px solid var(--border)', color: 'var(--text)' }} />
-                </div>
-                <div>
-                  <label className="font-mono text-xs tracking-widest block mb-1.5" style={{ color: 'var(--text3)' }}>OPPONENT SCORE</label>
-                  <input value={opponentScore} onChange={e => setOpponentScore(e.target.value)} placeholder="e.g. 145/2 (15.1)"
-                    className="w-full px-3 py-2 rounded-xl text-sm font-mono outline-none"
-                    style={{ background: 'var(--bg3)', border: '1px solid var(--border)', color: 'var(--text)' }} />
-                </div>
-              </div>
-            </div>
-
-            {/* Player stats */}
-            <div className="font-mono text-xs tracking-[3px] uppercase mb-3" style={{ color: 'var(--text3)' }}>4. Review & Edit Stats</div>
-            {[{ label: '🟠 MIGHTY MAVERICKS', players: mmPlayers }, { label: '🔵 HELL BOYS', players: hbPlayers }].map(team => (
-              <div key={team.label} className="rounded-xl overflow-hidden mb-6" style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
-                <div className="px-5 py-3 font-display text-xl tracking-wider" style={{ background: 'var(--bg3)', borderBottom: '1px solid var(--border)', color: 'var(--text)' }}>{team.label}</div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                        {['Player', 'Runs', 'Balls', 'Overs', 'R.Con', 'Wkts', 'Cts', 'RO-F', 'RO-H', 'Stmp', 'POTM'].map(h => (
-                          <th key={h} className="px-3 py-2 font-mono text-xs tracking-widest text-left" style={{ color: 'var(--text3)' }}>{h}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {team.players.map(player => {
-                        const entry = entries.find(e => e.player_id === player.id)!
-                        if (!entry) return null
-                        const pts = calculatePoints({
-                          runs: entry.runs, balls_faced: entry.balls_faced, overs_bowled: entry.overs_bowled,
-                          runs_conceded: entry.runs_conceded, wickets: entry.wickets, catches: entry.catches,
-                          runout_fielder: entry.runout_fielder, runout_helper: entry.runout_helper,
-                          stumpings: entry.stumpings, is_potm: entry.is_potm,
-                        })
-                        const hasStats = entry.runs > 0 || entry.wickets > 0 || entry.catches > 0 || entry.overs_bowled > 0
-                        return (
-                          <tr key={player.id} style={{ borderBottom: '1px solid var(--border)', background: hasStats ? '#ffffff06' : 'transparent' }}>
-                            <td className="px-3 py-2">
-                              <div className="font-medium" style={{ color: 'var(--text)' }}>{player.short_name}</div>
-                              <div className="font-display text-xs" style={{ color: pts.total_points > 0 ? 'var(--mm)' : 'var(--text3)' }}>{pts.total_points} pts</div>
-                            </td>
-                            {(['runs', 'balls_faced', 'overs_bowled', 'runs_conceded', 'wickets', 'catches', 'runout_fielder', 'runout_helper', 'stumpings'] as const).map(field => (
-                              <td key={field} className="px-2 py-2">
-                                <input type="number" min={0} step={field === 'overs_bowled' ? 0.1 : 1}
-                                  value={entry[field] as number}
-                                  onChange={e => updateEntry(player.id, field, parseFloat(e.target.value) || 0)}
-                                  className="w-14 px-2 py-1.5 rounded-lg text-center font-mono text-xs outline-none"
-                                  style={{ background: (entry[field] as number) > 0 ? '#ffffff10' : 'var(--bg3)', border: `1px solid ${(entry[field] as number) > 0 ? 'var(--border2)' : 'var(--border)'}`, color: 'var(--text)' }} />
-                              </td>
-                            ))}
-                            <td className="px-3 py-2">
-                              <button onClick={() => updateEntry(player.id, 'is_potm', !entry.is_potm)}
-                                className="w-8 h-8 rounded-lg flex items-center justify-center transition-all"
-                                style={{ background: entry.is_potm ? 'var(--mm-dim)' : 'var(--bg3)', border: `1px solid ${entry.is_potm ? 'var(--mm-border)' : 'var(--border)'}`, cursor: 'pointer', fontSize: '16px' }}>
-                                {entry.is_potm ? '🏅' : '—'}
-                              </button>
-                            </td>
-                          </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            ))}
-
-            <button onClick={handleSave} disabled={saving}
-              className="w-full py-4 rounded-xl font-display text-2xl tracking-wider transition-all"
-              style={{ background: saved ? 'var(--green)' : 'var(--mm)', color: 'white', cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1 }}>
-              {saving ? 'SAVING...' : saved ? '✓ SAVED!' : 'SAVE SCORECARD'}
+        {/* Filter tabs */}
+        <div className="flex gap-2 mb-6">
+          {(['all', 'MM', 'HB'] as const).map(f => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              className="px-4 py-2 rounded-xl font-mono text-xs tracking-widest uppercase transition-all"
+              style={{
+                background: filter === f ? 'var(--bg3)' : 'transparent',
+                border: `1px solid ${filter === f ? 'var(--border2)' : 'var(--border)'}`,
+                color: filter === f
+                  ? f === 'MM' ? 'var(--mm)' : f === 'HB' ? 'var(--hb)' : 'var(--text)'
+                  : 'var(--text3)',
+                cursor: 'pointer',
+              }}
+            >
+              {f === 'all' ? 'All Players' : f === 'MM' ? '🟠 Mighty Mavericks' : '🔵 Hell Boys'}
             </button>
-          </>
+          ))}
+        </div>
+
+        {/* Leaderboard */}
+        {loading ? (
+          <div className="text-center py-20">
+            <div className="font-mono text-xs tracking-[4px] uppercase" style={{ color: 'var(--text3)' }}>
+              Loading standings...
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {displayed.map((player, idx) => {
+              const rank = players.indexOf(player) + 1
+              const isTeamMM = player.team === 'MM'
+              const color = isTeamMM ? 'var(--mm)' : 'var(--hb)'
+              const dimColor = isTeamMM ? 'var(--mm-dim)' : 'var(--hb-dim)'
+              const borderColor = isTeamMM ? 'var(--mm-border)' : 'var(--hb-border)'
+
+              return (
+                <div
+                  key={player.id}
+                  onClick={() => setSelectedPlayer(player)}
+                  className="rounded-xl p-4 flex items-center gap-4 cursor-pointer transition-all card-hover"
+                  style={{
+                    background: 'var(--bg2)',
+                    border: '1px solid var(--border)',
+                    borderLeft: `3px solid ${rank <= 3 ? color : 'var(--border)'}`,
+                  }}
+                >
+                  {/* Rank */}
+                  <div
+                    className="w-8 text-center flex-shrink-0 font-display text-2xl"
+                    style={{ color: rank <= 3 ? color : 'var(--text3)' }}
+                  >
+                    {rank <= 3 ? ['🥇', '🥈', '🥉'][rank - 1] : rank}
+                  </div>
+
+                  {/* Avatar */}
+                  <div
+                    className="w-10 h-10 rounded-xl flex items-center justify-center font-display text-xl flex-shrink-0"
+                    style={{ background: dimColor, border: `1px solid ${borderColor}`, color }}
+                  >
+                    {player.short_name.charAt(0)}
+                  </div>
+
+                  {/* Name + team */}
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium" style={{ color: 'var(--text)' }}>
+                      {player.short_name}
+                    </div>
+                    <div className="font-mono text-xs mt-0.5" style={{ color: 'var(--text3)' }}>
+                      {player.team === 'MM' ? 'Mighty Mavericks' : 'Hell Boys'}
+                      {player.matches_played > 0 && ` · ${player.matches_played}M`}
+                    </div>
+                  </div>
+
+                  {/* Quick stats */}
+                  <div className="hidden sm:flex gap-4 text-right">
+                    <div>
+                      <div className="font-display text-lg" style={{ color: 'var(--text2)' }}>
+                        {player.total_runs}
+                      </div>
+                      <div className="font-mono text-[10px] tracking-widest" style={{ color: 'var(--text3)' }}>
+                        RUNS
+                      </div>
+                    </div>
+                    <div>
+                      <div className="font-display text-lg" style={{ color: 'var(--text2)' }}>
+                        {player.total_wickets}
+                      </div>
+                      <div className="font-mono text-[10px] tracking-widest" style={{ color: 'var(--text3)' }}>
+                        WKTS
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Points */}
+                  <div className="text-right flex-shrink-0">
+                    <div className="font-display text-3xl" style={{ color }}>
+                      {player.total_points}
+                    </div>
+                    <div className="font-mono text-[10px] tracking-widest" style={{ color: 'var(--text3)' }}>
+                      PTS
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+
+            {displayed.length === 0 && (
+              <div
+                className="text-center py-16 rounded-xl"
+                style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}
+              >
+                <div className="text-4xl mb-3">🏏</div>
+                <p className="font-mono text-xs tracking-widest" style={{ color: 'var(--text3)' }}>
+                  NO MATCHES PLAYED YET
+                </p>
+                <p className="text-sm mt-2" style={{ color: 'var(--text3)' }}>
+                  Standings will update after first match
+                </p>
+              </div>
+            )}
+          </div>
         )}
+
+        {/* Footer note */}
+        <div className="mt-8 text-center">
+          <p className="font-mono text-xs" style={{ color: 'var(--text3)' }}>
+            Click any player for full match breakdown · Points update live after each match
+          </p>
+        </div>
       </main>
+
+      {/* Player modal */}
+      {selectedPlayer && (
+        <PlayerModal
+          player={selectedPlayer}
+          onClose={() => setSelectedPlayer(null)}
+        />
+      )}
     </div>
   )
 }
