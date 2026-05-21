@@ -243,12 +243,12 @@ export function parseScorecardText(text: string): ParsedMatch {
   // Find POTM - highest scorer among MVCC players
   let potmPlayer = ''
   let maxRuns = 0
-  for (const [name, stats] of playerStats.entries()) {
+  Array.from(playerStats.entries()).forEach(([name, stats]) => {
     if (stats.runs > maxRuns) {
       maxRuns = stats.runs
       potmPlayer = name
     }
-  }
+  })
   if (potmPlayer && maxRuns >= 30) {
     const p = playerStats.get(potmPlayer)!
     p.is_potm = true
