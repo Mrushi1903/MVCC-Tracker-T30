@@ -170,7 +170,7 @@ Every `git push` to `main` auto-deploys to Vercel.
 
 ## Admin Workflow (After Each Match)
 1. Go to `/admin` on the live URL
-2. Enter password: `mvcc2026`
+2. Enter password: `Enter password when prompted`
 3. Select the match
 4. Enter result + scores
 5. Fill in stats for every player who played
