@@ -212,7 +212,7 @@ export default function PlayerModal({
                       <Chip label={`${perf.runs} runs`} sub={`+${perf.batting_points}pts`} color="var(--text2)" />
                     )}
                     {perf.wickets > 0 && (
-                      <Chip label={`${perf.wickets} wkts`} sub={`+${perf.wicket_points || perf.wickets * 20}pts`} color="var(--green)" />
+                      <Chip label={`${perf.wickets} wkts`} sub={`+${perf.bowling_points}pts`} color="var(--green)" />
                     )}
                     {perf.catches > 0 && (
                       <Chip label={`${perf.catches} catch`} sub={`+${perf.catches * 10}pts`} color="var(--gold)" />
