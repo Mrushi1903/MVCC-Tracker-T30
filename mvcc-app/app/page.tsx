@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import Image from 'next/image'
 import { supabase } from '@/lib/supabase'
 import { calculatePoints } from '@/lib/points'
@@ -8,6 +8,8 @@ import { getPlayerImage } from '@/lib/playerImages'
 import Nav from '@/components/Nav'
 import TeamBanner from '@/components/TeamBanner'
 import PlayerModal from '@/components/PlayerModal'
+import BackgroundCanvas from '@/components/BackgroundCanvas'
+import HorseWatermark from '@/components/HorseWatermark'
 
 type PlayerRow = {
   id: number
@@ -24,72 +26,9 @@ type PlayerRow = {
 
 const PODIUM_MEDALS = ['🥇', '🥈', '🥉']
 
-// Particle canvas background
-function ParticleBackground() {
-  const canvasRef = useRef<HTMLCanvasElement>(null)
-  useEffect(() => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
-    canvas.width = window.innerWidth
-    canvas.height = window.innerHeight
-    const colors = ['#c9a84c', '#3b82f6', '#e8c96d', '#60a5fa']
-    const particles = Array.from({ length: 55 }, () => ({
-      x: Math.random() * canvas.width,
-      y: Math.random() * canvas.height,
-      vx: (Math.random() - 0.5) * 0.3,
-      vy: (Math.random() - 0.5) * 0.3,
-      size: Math.random() * 1.4 + 0.3,
-      opacity: Math.random() * 0.35 + 0.05,
-      color: colors[Math.floor(Math.random() * colors.length)],
-    }))
-    let animId: number
-    function animate() {
-      if (!ctx || !canvas) return
-      ctx.clearRect(0, 0, canvas.width, canvas.height)
-      for (let i = 0; i < particles.length; i++) {
-        for (let j = i + 1; j < particles.length; j++) {
-          const dx = particles[i].x - particles[j].x
-          const dy = particles[i].y - particles[j].y
-          const dist = Math.sqrt(dx * dx + dy * dy)
-          if (dist < 110) {
-            ctx.beginPath()
-            ctx.strokeStyle = `rgba(201,168,76,${0.04 * (1 - dist / 110)})`
-            ctx.lineWidth = 0.5
-            ctx.moveTo(particles[i].x, particles[i].y)
-            ctx.lineTo(particles[j].x, particles[j].y)
-            ctx.stroke()
-          }
-        }
-      }
-      particles.forEach(p => {
-        p.x += p.vx; p.y += p.vy
-        if (p.x < 0 || p.x > canvas.width) p.vx *= -1
-        if (p.y < 0 || p.y > canvas.height) p.vy *= -1
-        ctx.beginPath()
-        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2)
-        ctx.fillStyle = p.color + Math.floor(p.opacity * 255).toString(16).padStart(2, '0')
-        ctx.fill()
-      })
-      animId = requestAnimationFrame(animate)
-    }
-    animate()
-    const onResize = () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight }
-    window.addEventListener('resize', onResize)
-    return () => { cancelAnimationFrame(animId); window.removeEventListener('resize', onResize) }
-  }, [])
-  return (
-    <canvas ref={canvasRef} style={{
-      position: 'fixed', top: 0, left: 0, width: '100%', height: '100%',
-      pointerEvents: 'none', zIndex: 0, opacity: 0.5,
-    }} />
-  )
-}
-
-// Player avatar — photo if available, else initial
 function PlayerAvatar({ shortName, size = 40, color, dimColor, borderColor, fontSize = 18 }: {
-  shortName: string; size?: number; color: string; dimColor: string; borderColor: string; fontSize?: number
+  shortName: string; size?: number; color: string
+  dimColor: string; borderColor: string; fontSize?: number
 }) {
   const imgSrc = getPlayerImage(shortName)
   const [imgError, setImgError] = useState(false)
@@ -98,28 +37,20 @@ function PlayerAvatar({ shortName, size = 40, color, dimColor, borderColor, font
     return (
       <div style={{
         width: size, height: size, borderRadius: size * 0.28,
-        overflow: 'hidden', border: `1px solid ${borderColor}`,
-        flexShrink: 0,
+        overflow: 'hidden', border: `1px solid ${borderColor}`, flexShrink: 0,
       }}>
-        <Image
-          src={imgSrc}
-          alt={shortName}
-          width={size}
-          height={size}
+        <Image src={imgSrc} alt={shortName} width={size} height={size}
           style={{ objectFit: 'cover', width: '100%', height: '100%' }}
-          onError={() => setImgError(true)}
-        />
+          onError={() => setImgError(true)} />
       </div>
     )
   }
-
   return (
     <div style={{
       width: size, height: size, borderRadius: size * 0.28,
       background: dimColor, border: `1px solid ${borderColor}`,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      fontFamily: "'Bebas Neue', cursive", fontSize, color,
-      flexShrink: 0,
+      fontFamily: "'Bebas Neue', cursive", fontSize, color, flexShrink: 0,
     }}>
       {shortName.charAt(0)}
     </div>
@@ -171,64 +102,28 @@ export default function HomePage() {
     setTimeout(() => setListVisible(true), 100)
   }
 
-  const mmPlayers = players.filter(p => p.team === 'MM')
-  const hbPlayers = players.filter(p => p.team === 'HB')
-  const mmTotal   = mmPlayers.reduce((s, p) => s + p.total_points, 0)
-  const hbTotal   = hbPlayers.reduce((s, p) => s + p.total_points, 0)
-  const top3      = players.slice(0, 3)
-  const restAll   = players.slice(3)
-  const filtered  = filter === 'all' ? restAll : players.filter(p => p.team === filter)
+  const mmPlayers  = players.filter(p => p.team === 'MM')
+  const hbPlayers  = players.filter(p => p.team === 'HB')
+  const mmTotal    = mmPlayers.reduce((s, p) => s + p.total_points, 0)
+  const hbTotal    = hbPlayers.reduce((s, p) => s + p.total_points, 0)
+  const top3       = players.slice(0, 3)
+  const restAll    = players.slice(3)
+  const filtered   = filter === 'all' ? restAll : players.filter(p => p.team === filter)
   const showPodium = filter === 'all' && !loading && top3.length > 0
 
   return (
-    <div style={{ background: 'var(--bg)', minHeight: '100vh', position: 'relative' }}>
-      <ParticleBackground />
+    <div style={{ background: '#05080f', minHeight: '100vh', position: 'relative' }}>
 
-      {/* Ambient glows */}
-      <div style={{
-        position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0,
-        background: `
-          radial-gradient(ellipse 60% 50% at 0% 0%,   #c9a84c09 0%, transparent 60%),
-          radial-gradient(ellipse 50% 40% at 100% 80%, #3b82f609 0%, transparent 60%)
-        `,
-      }} />
-
-      {/* ── HORSE WATERMARK ─────────────────────────────── */}
-      <div style={{
-        position: 'fixed',
-        top: '50%', left: '50%',
-        transform: 'translate(-50%, -50%)',
-        width: 520, height: 520,
-        pointerEvents: 'none',
-        zIndex: 0,
-        animation: 'horsePulse 6s ease-in-out infinite',
-      }}>
-        <Image
-          src="/mavericks-logo.jpeg"
-          alt=""
-          fill
-          style={{
-            objectFit: 'contain',
-            opacity: 0.032,
-            filter: 'grayscale(30%) sepia(40%)',
-          }}
-        />
-      </div>
-
-      {/* Horse pulse keyframe injected inline */}
-      <style>{`
-        @keyframes horsePulse {
-          0%, 100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-          50%       { opacity: 0.7; transform: translate(-50%, -50%) scale(1.03); }
-        }
-      `}</style>
+      {/* ── FULL ANIMATED BACKGROUND ────────────────────── */}
+      <BackgroundCanvas />
+      <HorseWatermark />
 
       <div style={{ position: 'relative', zIndex: 1 }}>
         <Nav />
 
         <main className="max-w-5xl mx-auto px-4 py-12">
 
-          {/* HERO */}
+          {/* ── HERO ──────────────────────────────────────── */}
           <div className="mb-12 fade-in">
             <div className="flex items-center gap-3 mb-4">
               <span className="live-dot" />
@@ -238,33 +133,41 @@ export default function HomePage() {
             </div>
             <h1 className="font-display tracking-widest" style={{
               fontSize: 'clamp(56px, 10vw, 100px)', lineHeight: 0.9,
-              color: 'var(--text)', textShadow: '0 0 80px rgba(201,168,76,0.1)',
+              color: 'var(--text)',
+              textShadow: '0 0 60px rgba(201,168,76,0.15), 0 2px 4px rgba(0,0,0,0.8)',
             }}>
               STANDINGS
             </h1>
-            <div style={{ width: 80, height: 3, marginTop: 12, background: 'linear-gradient(90deg, var(--mm), transparent)', borderRadius: 99 }} />
+            <div style={{
+              width: 80, height: 3, marginTop: 12,
+              background: 'linear-gradient(90deg, var(--mm), transparent)',
+              borderRadius: 99,
+            }} />
             <p className="font-mono text-sm mt-4" style={{ color: 'var(--text3)' }}>
               Mavericks Cricket Club · T30 Internal Tournament · 8 Matches
             </p>
           </div>
 
-          {/* TEAM BANNER */}
+          {/* ── TEAM BANNER ───────────────────────────────── */}
           <TeamBanner mmTotal={mmTotal} hbTotal={hbTotal} />
 
-          {/* TOP 3 PODIUM */}
+          {/* ── TOP 3 PODIUM ──────────────────────────────── */}
           {showPodium && (
             <div className="mb-10">
               <div className="flex items-center gap-3 mb-5 fade-in-2">
-                <span className="font-mono text-xs tracking-[4px] uppercase" style={{ color: 'var(--text3)' }}>Top Performers</span>
+                <span className="font-mono text-xs tracking-[4px] uppercase" style={{ color: 'var(--text3)' }}>
+                  Top Performers
+                </span>
                 <div style={{ flex: 1, height: 1, background: 'linear-gradient(90deg, var(--border), transparent)' }} />
               </div>
+
               <div className="grid grid-cols-3 gap-4">
                 {top3.map((player, i) => {
                   const isMM    = player.team === 'MM'
                   const color   = isMM ? 'var(--mm)' : 'var(--hb)'
                   const dimC    = isMM ? 'var(--mm-dim)' : 'var(--hb-dim)'
                   const borderC = isMM ? 'var(--mm-border)' : 'var(--hb-border)'
-                  const glowC   = isMM ? 'rgba(201,168,76,0.15)' : 'rgba(59,130,246,0.15)'
+                  const glowC   = isMM ? 'rgba(201,168,76,0.18)' : 'rgba(59,130,246,0.18)'
                   const isFirst = i === 0
 
                   return (
@@ -272,29 +175,53 @@ export default function HomePage() {
                       onClick={() => setSelectedPlayer(player)}
                       className={`card-hover cursor-pointer rounded-2xl overflow-hidden relative ${isFirst ? 'scale-in' : i === 1 ? 'fade-in-2' : 'fade-in-3'}`}
                       style={{
-                        background: isFirst ? 'linear-gradient(160deg, #1c1400 0%, #120e02 30%, var(--bg2) 70%)' : 'var(--bg2)',
-                        border: `1px solid ${isFirst ? 'rgba(201,168,76,0.3)' : 'var(--border)'}`,
-                        boxShadow: isFirst ? `0 8px 40px ${glowC}` : '0 4px 20px rgba(0,0,0,0.3)',
-                        marginTop: i === 2 ? 16 : 0,
+                        background: isFirst
+                          ? 'linear-gradient(160deg, #1c1400 0%, #120e02 40%, rgba(11,18,33,0.95) 100%)'
+                          : 'rgba(11,18,33,0.9)',
+                        border: `1px solid ${isFirst ? 'rgba(201,168,76,0.35)' : 'var(--border)'}`,
+                        boxShadow: isFirst
+                          ? `0 8px 50px ${glowC}, 0 0 0 1px rgba(201,168,76,0.1)`
+                          : `0 4px 20px rgba(0,0,0,0.4)`,
+                        marginTop: i === 2 ? 20 : 0,
+                        backdropFilter: 'blur(12px)',
                       }}>
-                      <div style={{ height: 2, background: isFirst ? 'linear-gradient(90deg, transparent, var(--mm), transparent)' : `linear-gradient(90deg, transparent, ${color}60, transparent)` }} />
-                      <div className="p-5 text-center">
-                        <div className={`text-4xl mb-4 ${isFirst ? 'float' : ''}`}>{PODIUM_MEDALS[i]}</div>
 
-                        {/* Player photo */}
+                      {/* Top shimmer line */}
+                      <div style={{
+                        height: 2,
+                        background: isFirst
+                          ? 'linear-gradient(90deg, transparent, #c9a84c, #f5e070, #c9a84c, transparent)'
+                          : `linear-gradient(90deg, transparent, ${color}80, transparent)`,
+                        animation: isFirst ? 'shimmer 3s linear infinite' : 'none',
+                        backgroundSize: '200% auto',
+                      }} />
+
+                      <div className="p-5 text-center">
+                        <div className={`text-4xl mb-4 ${isFirst ? 'float' : ''}`}>
+                          {PODIUM_MEDALS[i]}
+                        </div>
+
+                        {/* Avatar */}
                         <div className="flex justify-center mb-3 relative">
                           <PlayerAvatar
                             shortName={player.short_name}
-                            size={isFirst ? 72 : 60}
+                            size={isFirst ? 76 : 60}
                             color={color} dimColor={dimC} borderColor={borderC}
-                            fontSize={isFirst ? 28 : 22}
+                            fontSize={isFirst ? 30 : 22}
                           />
                           {isFirst && (
-                            <div style={{
-                              position: 'absolute', inset: -2, borderRadius: 22,
-                              border: '1px solid rgba(201,168,76,0.2)',
-                              animation: 'pulse 3s ease infinite',
-                            }} />
+                            <>
+                              <div style={{
+                                position: 'absolute', inset: -3, borderRadius: 24,
+                                border: '1px solid rgba(201,168,76,0.3)',
+                                animation: 'pulse 3s ease infinite',
+                              }} />
+                              <div style={{
+                                position: 'absolute', inset: -8, borderRadius: 28,
+                                border: '1px solid rgba(201,168,76,0.1)',
+                                animation: 'pulse 3s ease 1s infinite',
+                              }} />
+                            </>
                           )}
                         </div>
 
@@ -304,13 +231,17 @@ export default function HomePage() {
                         <div className="font-mono text-xs mb-4" style={{ color: 'var(--text3)' }}>
                           {player.team === 'MM' ? 'Mighty Mavericks' : 'Hell Boys'}
                         </div>
+
+                        {/* Points */}
                         <div className={`font-display leading-none ${isFirst ? 'gold-shimmer' : ''}`}
-                          style={isFirst ? { fontSize: 52 } : { fontSize: 52, color }}>
+                          style={isFirst ? { fontSize: 56 } : { fontSize: 56, color }}>
                           {player.total_points}
                         </div>
                         <div className="font-mono text-[10px] tracking-widest mt-1 mb-4" style={{ color: 'var(--text3)' }}>
                           TOURNAMENT POINTS
                         </div>
+
+                        {/* Stats */}
                         <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12 }}>
                           <div className="grid grid-cols-3 gap-2">
                             {[
@@ -333,7 +264,7 @@ export default function HomePage() {
             </div>
           )}
 
-          {/* FILTER TABS */}
+          {/* ── FILTER TABS ────────────────────────────────── */}
           <div className="flex gap-2 mb-6 fade-in-3">
             {(['all', 'MM', 'HB'] as const).map(f => {
               const active  = filter === f
@@ -344,10 +275,11 @@ export default function HomePage() {
                 <button key={f} onClick={() => setFilter(f)}
                   className="px-4 py-2 rounded-xl font-mono text-xs tracking-widest uppercase transition-all"
                   style={{
-                    background: active ? fDim : 'transparent',
+                    background: active ? fDim : 'rgba(11,18,33,0.6)',
                     border: `1px solid ${active ? fBorder : 'var(--border)'}`,
                     color: active ? fColor : 'var(--text3)',
                     cursor: 'pointer',
+                    backdropFilter: 'blur(8px)',
                     boxShadow: active ? `0 4px 20px ${fDim}` : 'none',
                   }}>
                   {f === 'all' ? '⚡ All Players' : f === 'MM' ? '🟡 Mighty Mavericks' : '🔵 Hell Boys'}
@@ -356,7 +288,7 @@ export default function HomePage() {
             })}
           </div>
 
-          {/* LEADERBOARD */}
+          {/* ── LEADERBOARD ────────────────────────────────── */}
           {loading ? (
             <div className="text-center py-32">
               <div style={{
@@ -364,13 +296,17 @@ export default function HomePage() {
                 border: '2px solid var(--border2)', borderTop: '2px solid var(--mm)',
                 animation: 'rotateSlow 1s linear infinite', margin: '0 auto 20px',
               }} />
-              <div className="font-display text-3xl tracking-[6px]" style={{ color: 'var(--border2)' }}>LOADING</div>
+              <div className="font-display text-3xl tracking-[6px]" style={{ color: 'var(--border2)' }}>
+                LOADING
+              </div>
             </div>
           ) : (
             <div>
               {filter === 'all' && players.length > 3 && (
                 <div className="flex items-center gap-3 mb-5 fade-in-4">
-                  <span className="font-mono text-xs tracking-[4px] uppercase" style={{ color: 'var(--text3)' }}>Full Rankings</span>
+                  <span className="font-mono text-xs tracking-[4px] uppercase" style={{ color: 'var(--text3)' }}>
+                    Full Rankings
+                  </span>
                   <div style={{ flex: 1, height: 1, background: 'linear-gradient(90deg, var(--border), transparent)' }} />
                 </div>
               )}
@@ -389,31 +325,41 @@ export default function HomePage() {
                       onClick={() => setSelectedPlayer(player)}
                       className={`card-hover cursor-pointer rounded-xl flex items-center gap-4 px-5 py-4 ${rowClass}`}
                       style={{
-                        background: 'var(--bg2)',
+                        background: 'rgba(11,18,33,0.75)',
                         border: '1px solid var(--border)',
                         borderLeft: `3px solid ${color}`,
+                        backdropFilter: 'blur(12px)',
                         position: 'relative', overflow: 'hidden',
                       }}>
+
+                      {/* Subtle team glow */}
                       <div style={{
                         position: 'absolute', inset: 0, pointerEvents: 'none',
-                        background: `linear-gradient(90deg, ${isMM ? '#c9a84c05' : '#3b82f605'}, transparent)`,
+                        background: `linear-gradient(90deg, ${isMM ? '#c9a84c06' : '#3b82f606'} 0%, transparent 40%)`,
                       }} />
 
                       {/* Rank */}
-                      <div className="w-8 text-center flex-shrink-0 font-display text-xl" style={{ color: 'var(--text3)' }}>
+                      <div className="w-8 text-center flex-shrink-0 font-display text-xl"
+                        style={{ color: 'var(--text3)' }}>
                         {rank}
                       </div>
 
-                      {/* Player photo */}
-                      <PlayerAvatar shortName={player.short_name} size={40} color={color} dimColor={dimC} borderColor={borderC} />
+                      {/* Photo */}
+                      <PlayerAvatar shortName={player.short_name} size={42}
+                        color={color} dimColor={dimC} borderColor={borderC} />
 
                       {/* Name */}
                       <div className="flex-1 min-w-0">
-                        <div className="font-semibold text-sm" style={{ color: 'var(--text)' }}>{player.short_name}</div>
-                        <div className="font-mono text-xs mt-0.5 flex items-center gap-1.5" style={{ color: 'var(--text3)' }}>
+                        <div className="font-semibold text-sm" style={{ color: 'var(--text)' }}>
+                          {player.short_name}
+                        </div>
+                        <div className="font-mono text-xs mt-0.5 flex items-center gap-1.5"
+                          style={{ color: 'var(--text3)' }}>
                           <span style={{ width: 5, height: 5, borderRadius: '50%', background: color, display: 'inline-block' }} />
                           {player.team === 'MM' ? 'Mighty Mavericks' : 'Hell Boys'}
-                          {player.matches_played > 0 && <span style={{ color: 'var(--border2)' }}>· {player.matches_played}M</span>}
+                          {player.matches_played > 0 && (
+                            <span style={{ color: 'var(--border2)' }}>· {player.matches_played}M</span>
+                          )}
                         </div>
                       </div>
 
@@ -433,7 +379,7 @@ export default function HomePage() {
                       <div className="text-right flex-shrink-0 ml-2">
                         <div className="font-display text-4xl" style={{
                           color,
-                          textShadow: `0 0 20px ${isMM ? 'rgba(201,168,76,0.3)' : 'rgba(59,130,246,0.3)'}`,
+                          textShadow: `0 0 20px ${isMM ? 'rgba(201,168,76,0.4)' : 'rgba(59,130,246,0.4)'}`,
                         }}>
                           {player.total_points}
                         </div>
@@ -444,28 +390,41 @@ export default function HomePage() {
                 })}
 
                 {filtered.length === 0 && (
-                  <div className="text-center py-24 rounded-2xl" style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
+                  <div className="text-center py-24 rounded-2xl"
+                    style={{ background: 'rgba(11,18,33,0.8)', border: '1px solid var(--border)', backdropFilter: 'blur(12px)' }}>
                     <div className="text-6xl mb-4 float" style={{ display: 'inline-block' }}>🏏</div>
-                    <div className="font-display text-3xl tracking-widest mb-2" style={{ color: 'var(--border2)' }}>SEASON STARTING SOON</div>
-                    <p className="font-mono text-xs" style={{ color: 'var(--text3)' }}>Standings update live after each match</p>
+                    <div className="font-display text-3xl tracking-widest mb-2" style={{ color: 'var(--border2)' }}>
+                      SEASON STARTING SOON
+                    </div>
+                    <p className="font-mono text-xs" style={{ color: 'var(--text3)' }}>
+                      Standings update live after each match
+                    </p>
                   </div>
                 )}
               </div>
             </div>
           )}
 
-          {/* FOOTER */}
+          {/* ── FOOTER ─────────────────────────────────────── */}
           <div className="mt-16 text-center">
-            <div style={{ height: 1, background: 'linear-gradient(90deg, transparent, var(--border2), transparent)', marginBottom: 16 }} />
+            <div style={{
+              height: 1,
+              background: 'linear-gradient(90deg, transparent, var(--border2), transparent)',
+              marginBottom: 16,
+            }} />
             <p className="font-mono text-xs" style={{ color: 'var(--text3)' }}>
               Click any player for full match breakdown · Points update live
             </p>
-            <p className="font-mono text-xs mt-1" style={{ color: 'var(--border2)' }}>MVCC T30 2026 · Michigan · #MaverickSpirit</p>
+            <p className="font-mono text-xs mt-1" style={{ color: 'var(--border2)' }}>
+              MVCC T30 2026 · Michigan · #MaverickSpirit
+            </p>
           </div>
         </main>
       </div>
 
-      {selectedPlayer && <PlayerModal player={selectedPlayer} onClose={() => setSelectedPlayer(null)} />}
+      {selectedPlayer && (
+        <PlayerModal player={selectedPlayer} onClose={() => setSelectedPlayer(null)} />
+      )}
     </div>
   )
 }
