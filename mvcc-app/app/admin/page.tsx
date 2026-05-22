@@ -6,7 +6,11 @@ import { calculatePoints } from '@/lib/points'
 import { parseCricClubCSV } from '@/lib/parseCSV'
 import Nav from '@/components/Nav'
 
-const ADMIN_EMAILS = ['mrushireddy2232@gmail.com']
+const ADMIN_EMAILS = [
+  'mrushireddy2232@gmail.com',  // Rushi
+  'viswakasu@gmail.com',         // Viswa — Captain
+  'rohitmaddipati23@gmail.com',  // Rohith — VC
+]
 
 type PerfEntry = {
   player_id: number

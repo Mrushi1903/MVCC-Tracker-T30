@@ -5,7 +5,11 @@ import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 
-const ADMIN_EMAILS = ['mrushireddy2232@gmail.com']
+const ADMIN_EMAILS = [
+  'mrushireddy2232@gmail.com',  // Rushi
+  'viswakasu@gmail.com',         // Viswa — Captain
+  'rohitmaddipati23@gmail.com',  // Rohith — VC
+]
 
 export default function MobileNav() {
   const path = usePathname()
