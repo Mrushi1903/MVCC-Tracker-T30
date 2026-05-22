@@ -1,198 +1,189 @@
 'use client'
-import { useEffect, useRef, useState } from 'react'
 
 type Props = { mmTotal: number; hbTotal: number }
 
-function useCountUp(target: number, duration = 1200) {
-  const [value, setValue] = useState(0)
-  useEffect(() => {
-    if (target === 0) { setValue(0); return }
-    let start = 0
-    const step = target / (duration / 16)
-    const timer = setInterval(() => {
-      start += step
-      if (start >= target) { setValue(target); clearInterval(timer) }
-      else setValue(Math.floor(start))
-    }, 16)
-    return () => clearInterval(timer)
-  }, [target, duration])
-  return value
-}
-
 export default function TeamBanner({ mmTotal, hbTotal }: Props) {
-  const total      = mmTotal + hbTotal
-  const mmPct      = total > 0 ? (mmTotal / total) * 100 : 50
-  const hbPct      = 100 - mmPct
-  const mmLeading  = mmTotal >= hbTotal
-  const diff       = Math.abs(mmTotal - hbTotal)
-  const mmCount    = useCountUp(mmTotal)
-  const hbCount    = useCountUp(hbTotal)
-  const [barVisible, setBarVisible] = useState(false)
-  const barRef = useRef<HTMLDivElement>(null)
+  const total = mmTotal + hbTotal
+  const mmPct = total > 0 ? (mmTotal / total) * 100 : 50
+  const hbPct = 100 - mmPct
+  const mmLeading = mmTotal > hbTotal
+  const hbLeading = hbTotal > mmTotal
+  const tied = mmTotal === hbTotal
 
-  useEffect(() => {
-    const observer = new IntersectionObserver(([entry]) => {
-      if (entry.isIntersecting) { setBarVisible(true); observer.disconnect() }
-    }, { threshold: 0.3 })
-    if (barRef.current) observer.observe(barRef.current)
-    return () => observer.disconnect()
-  }, [])
+  // Viswa anna's request: leading team → gold, trailing → silver
+  const mmColor = mmLeading ? '#F59E0B' : tied ? 'var(--mm)' : '#64748b'
+  const hbColor = hbLeading ? '#F59E0B' : tied ? 'var(--hb)' : '#64748b'
+  const mmTextGlow = mmLeading ? '0 0 30px rgba(245,158,11,0.4)' : 'none'
+  const hbTextGlow = hbLeading ? '0 0 30px rgba(245,158,11,0.4)' : 'none'
+
+  const leadDiff = Math.abs(mmTotal - hbTotal)
 
   return (
-    <div className="mb-10 fade-in-1">
-      <div className="rounded-2xl overflow-hidden relative"
-        style={{
-          background: 'var(--bg2)',
-          border: '1px solid var(--border2)',
-          boxShadow: '0 8px 60px rgba(0,0,0,0.5)',
-        }}
-      >
-        {/* Top gradient line */}
-        <div style={{
-          height: 3,
-          background: 'linear-gradient(90deg, var(--mm) 0%, #c9a84c80 48%, transparent 50%, #3b82f680 52%, var(--hb) 100%)',
-        }} />
+    <div
+      className="rounded-2xl p-5 mb-6 relative overflow-hidden z-content"
+      style={{
+        background: 'rgba(255,255,255,0.05)',
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
+        border: '1px solid rgba(255,255,255,0.10)',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+      }}
+    >
+      {/* Gradient background glow */}
+      <div style={{
+        position: 'absolute', inset: 0, zIndex: 0, pointerEvents: 'none',
+        background: mmLeading
+          ? 'radial-gradient(ellipse 60% 80% at 20% 50%, rgba(245,158,11,0.06) 0%, transparent 70%)'
+          : hbLeading
+          ? 'radial-gradient(ellipse 60% 80% at 80% 50%, rgba(245,158,11,0.06) 0%, transparent 70%)'
+          : 'none',
+      }} />
 
-        {/* Background glow */}
-        <div style={{
-          position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-          background: `
-            radial-gradient(ellipse 40% 60% at 10% 50%, #c9a84c08 0%, transparent 70%),
-            radial-gradient(ellipse 40% 60% at 90% 50%, #3b82f608 0%, transparent 70%)
-          `,
-          pointerEvents: 'none',
-        }} />
+      <div className="relative z-content">
+        <div className="grid grid-cols-3 gap-2 items-center mb-4">
 
-        <div className="relative p-4 md:p-8">
-          <div className="grid grid-cols-3 gap-2 md:gap-4 items-center">
-
-            {/* MM SIDE */}
-            <div className="text-left">
-              <div className="font-mono tracking-[2px] uppercase mb-2 flex items-center gap-1.5"
-                style={{ color: 'var(--mm)', opacity: 0.8, fontSize: 'clamp(8px, 1.5vw, 12px)' }}>
-                <span style={{
-                  display: 'inline-block', width: 6, height: 6, borderRadius: '50%',
-                  background: 'var(--mm)', boxShadow: '0 0 6px var(--mm)', flexShrink: 0,
-                }} />
-                <span className="hidden sm:inline">Mighty Mavericks</span>
-                <span className="sm:hidden">MM</span>
-              </div>
-              <div className="font-display leading-none"
-                style={{
-                  fontSize: 'clamp(40px, 8vw, 80px)',
-                  color: 'var(--mm)',
-                  textShadow: '0 0 40px rgba(201,168,76,0.3)',
-                  letterSpacing: -1,
-                }}>
-                {mmCount}
-              </div>
-              <div className="font-mono tracking-widest mt-1"
-                style={{ color: 'var(--text3)', fontSize: 'clamp(8px, 1.2vw, 11px)' }}>
-                TOTAL PTS
-              </div>
-              {mmLeading && total > 0 && (
-                <div className="inline-flex items-center gap-1.5 mt-2 px-2 py-1 rounded-full font-mono"
-                  style={{
-                    background: 'linear-gradient(135deg, var(--mm-dim), transparent)',
-                    border: '1px solid var(--mm-border)',
-                    color: 'var(--mm)',
-                    fontSize: 'clamp(8px, 1.2vw, 11px)',
-                  }}>
-                  <span className="live-dot" style={{ width: 4, height: 4 }} />
-                  +{diff} PTS
-                </div>
-              )}
+          {/* ── MM ── */}
+          <div className="text-left">
+            <div className="font-mono text-[10px] tracking-[3px] uppercase mb-1 flex items-center gap-1.5"
+              style={{ color: mmLeading ? '#F59E0B' : 'var(--text3)' }}>
+              <span style={{
+                width: 6, height: 6, borderRadius: '50%',
+                background: mmLeading ? '#F59E0B' : '#64748b',
+                display: 'inline-block',
+                boxShadow: mmLeading ? '0 0 6px rgba(245,158,11,0.8)' : 'none',
+              }} />
+              MM
+              {mmLeading && <span style={{ fontSize: 9 }}>LEADING</span>}
             </div>
 
-            {/* CENTER */}
-            <div className="text-center">
-              <div className="font-display tracking-widest"
-                style={{ color: 'var(--border2)', fontSize: 'clamp(36px, 7vw, 72px)', letterSpacing: 4 }}>
-                VS
-              </div>
-              <div style={{ height: 1, background: 'linear-gradient(90deg, transparent, var(--border2), transparent)', margin: '8px 0' }} />
-              <div className="font-mono tracking-[2px] uppercase hidden sm:block"
-                style={{ color: 'var(--text3)', fontSize: 10 }}>
-                Season 2026
-              </div>
-              <div className="font-mono tracking-[2px] uppercase hidden sm:block mt-0.5"
-                style={{ color: 'var(--text3)', fontSize: 10 }}>
-                T30 Internal
-              </div>
+            <div
+              className="font-display leading-none mb-1"
+              style={{
+                fontSize: 'clamp(40px, 8vw, 64px)',
+                color: mmColor,
+                textShadow: mmTextGlow,
+                transition: 'color 0.5s ease, text-shadow 0.5s ease',
+              }}
+            >
+              {mmTotal}
             </div>
 
-            {/* HB SIDE */}
-            <div className="text-right">
-              <div className="font-mono tracking-[2px] uppercase mb-2 flex items-center justify-end gap-1.5"
-                style={{ color: 'var(--hb)', opacity: 0.8, fontSize: 'clamp(8px, 1.5vw, 12px)' }}>
-                <span className="hidden sm:inline">Hell Boys</span>
-                <span className="sm:hidden">HB</span>
-                <span style={{
-                  display: 'inline-block', width: 6, height: 6, borderRadius: '50%',
-                  background: 'var(--hb)', boxShadow: '0 0 6px var(--hb)', flexShrink: 0,
-                }} />
-              </div>
-              <div className="font-display leading-none"
-                style={{
-                  fontSize: 'clamp(40px, 8vw, 80px)',
-                  color: 'var(--hb)',
-                  textShadow: '0 0 40px rgba(59,130,246,0.3)',
-                  letterSpacing: -1,
-                }}>
-                {hbCount}
-              </div>
-              <div className="font-mono tracking-widest mt-1"
-                style={{ color: 'var(--text3)', fontSize: 'clamp(8px, 1.2vw, 11px)' }}>
-                TOTAL PTS
-              </div>
-              {!mmLeading && total > 0 && (
-                <div className="inline-flex items-center justify-end gap-1.5 mt-2 px-2 py-1 rounded-full font-mono"
-                  style={{
-                    background: 'linear-gradient(135deg, var(--hb-dim), transparent)',
-                    border: '1px solid var(--hb-border)',
-                    color: 'var(--hb)',
-                    fontSize: 'clamp(8px, 1.2vw, 11px)',
-                  }}>
-                  <span className="live-dot" style={{ width: 4, height: 4, background: 'var(--hb)', boxShadow: '0 0 4px var(--hb)' }} />
-                  +{diff} PTS
-                </div>
-              )}
+            <div className="font-mono text-[10px] tracking-widest mb-2" style={{ color: 'var(--text3)' }}>
+              TOTAL PTS
+            </div>
+
+            <div className="font-display text-base tracking-wider" style={{ color: mmColor, opacity: 0.9 }}>
+              MIGHTY MAVERICKS
+            </div>
+            <div className="font-mono text-[10px] mt-0.5" style={{ color: 'var(--text3)' }}>
+              11 players
             </div>
           </div>
 
-          {/* Animated progress bar */}
-          <div className="mt-6" ref={barRef}>
-            <div className="h-2.5 rounded-full overflow-hidden relative"
-              style={{ background: 'var(--bg4)', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.4)' }}>
-              <div className="h-full flex absolute inset-0">
-                <div style={{
-                  width: barVisible ? `${mmPct}%` : '0%',
-                  background: 'linear-gradient(90deg, #7a5c1e, var(--mm), var(--mm-light))',
-                  borderRadius: '99px 0 0 99px',
-                  transition: 'width 1.4s cubic-bezier(0.4,0,0.2,1) 0.2s',
-                  boxShadow: '4px 0 12px rgba(201,168,76,0.4)',
-                }} />
-                <div style={{
-                  width: barVisible ? `${hbPct}%` : '0%',
-                  background: 'linear-gradient(90deg, var(--hb), var(--hb-light))',
-                  borderRadius: '0 99px 99px 0',
-                  transition: 'width 1.4s cubic-bezier(0.4,0,0.2,1) 0.2s',
-                  boxShadow: '-4px 0 12px rgba(59,130,246,0.4)',
-                }} />
-              </div>
+          {/* ── VS ── */}
+          <div className="text-center">
+            <div
+              className="font-display text-4xl mb-1"
+              style={{ color: 'rgba(255,255,255,0.08)' }}
+            >
+              VS
             </div>
-            <div className="flex justify-between mt-2">
-              <span className="font-mono text-xs font-semibold" style={{ color: 'var(--mm)' }}>
-                {mmPct.toFixed(1)}%
-              </span>
-              <span className="font-mono text-xs hidden sm:block" style={{ color: 'var(--text3)' }}>
-                8 matches · 1 played
-              </span>
-              <span className="font-mono text-xs font-semibold" style={{ color: 'var(--hb)' }}>
-                {hbPct.toFixed(1)}%
-              </span>
+
+            {total > 0 && !tied && (
+              <div
+                className="font-mono text-[10px] tracking-widest px-2 py-1 rounded-full mx-auto w-fit"
+                style={{
+                  color: '#F59E0B',
+                  background: 'rgba(245,158,11,0.12)',
+                  border: '1px solid rgba(245,158,11,0.25)',
+                }}
+              >
+                +{leadDiff} PTS
+              </div>
+            )}
+
+            {tied && total > 0 && (
+              <div className="font-mono text-[10px] tracking-widest" style={{ color: 'var(--text3)' }}>
+                TIED
+              </div>
+            )}
+          </div>
+
+          {/* ── HB ── */}
+          <div className="text-right">
+            <div className="font-mono text-[10px] tracking-[3px] uppercase mb-1 flex items-center justify-end gap-1.5"
+              style={{ color: hbLeading ? '#F59E0B' : 'var(--text3)' }}>
+              {hbLeading && <span style={{ fontSize: 9 }}>LEADING</span>}
+              HB
+              <span style={{
+                width: 6, height: 6, borderRadius: '50%',
+                background: hbLeading ? '#F59E0B' : '#64748b',
+                display: 'inline-block',
+                boxShadow: hbLeading ? '0 0 6px rgba(245,158,11,0.8)' : 'none',
+              }} />
+            </div>
+
+            <div
+              className="font-display leading-none mb-1"
+              style={{
+                fontSize: 'clamp(40px, 8vw, 64px)',
+                color: hbColor,
+                textShadow: hbTextGlow,
+                transition: 'color 0.5s ease, text-shadow 0.5s ease',
+              }}
+            >
+              {hbTotal}
+            </div>
+
+            <div className="font-mono text-[10px] tracking-widest mb-2" style={{ color: 'var(--text3)' }}>
+              TOTAL PTS
+            </div>
+
+            <div className="font-display text-base tracking-wider" style={{ color: hbColor, opacity: 0.9 }}>
+              HELL BOYS
+            </div>
+            <div className="font-mono text-[10px] mt-0.5" style={{ color: 'var(--text3)' }}>
+              11 players
             </div>
           </div>
+        </div>
+
+        {/* ── Progress Bar ── */}
+        <div
+          className="h-2 rounded-full overflow-hidden"
+          style={{ background: 'rgba(255,255,255,0.06)' }}
+        >
+          <div className="h-full flex">
+            <div
+              className="h-full transition-all duration-1000"
+              style={{
+                width: `${mmPct}%`,
+                background: mmLeading
+                  ? 'linear-gradient(90deg, #c9a84c, #F59E0B)'
+                  : 'linear-gradient(90deg, #64748b, #475569)',
+                borderRadius: '4px 0 0 4px',
+              }}
+            />
+            <div
+              className="h-full transition-all duration-1000"
+              style={{
+                width: `${hbPct}%`,
+                background: hbLeading
+                  ? 'linear-gradient(90deg, #F59E0B, #c9a84c)'
+                  : 'linear-gradient(90deg, #475569, #64748b)',
+                borderRadius: '0 4px 4px 0',
+              }}
+            />
+          </div>
+        </div>
+
+        <div className="flex justify-between mt-2">
+          <span className="font-mono text-[11px]" style={{ color: mmLeading ? '#F59E0B' : 'var(--text3)' }}>
+            {mmPct.toFixed(1)}%
+          </span>
+          <span className="font-mono text-[11px]" style={{ color: hbLeading ? '#F59E0B' : 'var(--text3)' }}>
+            {hbPct.toFixed(1)}%
+          </span>
         </div>
       </div>
     </div>

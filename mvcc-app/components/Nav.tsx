@@ -1,65 +1,47 @@
 'use client'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useState, useEffect } from 'react'
-import Image from 'next/image'
 
 export default function Nav() {
   const path = usePathname()
-  const [scrolled, setScrolled] = useState(false)
-
-  useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 20)
-    window.addEventListener('scroll', onScroll)
-    return () => window.removeEventListener('scroll', onScroll)
-  }, [])
-
-  const links = [
-    { href: '/',         label: 'Standings' },
-    { href: '/schedule', label: 'Schedule'  },
-    { href: '/rules',    label: 'Rules'     },
-  ]
 
   return (
     <nav
-      className="hidden md:block"
       style={{
-        position: 'sticky', top: 0, zIndex: 50,
-        transition: 'all 0.3s ease',
-        background: scrolled ? 'rgba(5,8,15,0.95)' : 'rgba(5,8,15,0.7)',
-        backdropFilter: 'blur(24px)',
-        WebkitBackdropFilter: 'blur(24px)',
-        borderBottom: scrolled ? '1px solid var(--border2)' : '1px solid var(--border)',
-        boxShadow: scrolled ? '0 4px 30px rgba(0,0,0,0.5)' : 'none',
+        background: 'rgba(11, 16, 32, 0.85)',
+        borderBottom: '1px solid rgba(255,255,255,0.08)',
+        position: 'sticky',
+        top: 0,
+        zIndex: 50,
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
+        boxShadow: '0 4px 24px rgba(0,0,0,0.3)',
       }}
     >
-      <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
+      {/* Top accent line */}
+      <div style={{
+        height: '2px',
+        background: 'linear-gradient(90deg, transparent, #00E5FF, #c9a84c, transparent)',
+        opacity: 0.6,
+      }} />
 
-        {/* Logo */}
-        <Link href="/" className="flex items-center gap-3 group">
-          <div style={{
-            width: 40, height: 40, borderRadius: 10,
-            overflow: 'hidden',
-            border: '1px solid var(--mm-border)',
-            boxShadow: '0 2px 12px rgba(201,168,76,0.25)',
-            flexShrink: 0,
-            transition: 'box-shadow 0.3s ease',
-          }}
-          className="group-hover:shadow-[0_4px_20px_rgba(201,168,76,0.45)]"
+      <div className="max-w-5xl mx-auto px-4 flex items-center justify-between h-14">
+        {/* Logo + name */}
+        <Link href="/" className="flex items-center gap-2.5 group">
+          <div
+            className="w-8 h-8 rounded-lg overflow-hidden flex-shrink-0"
+            style={{
+              border: '1px solid rgba(201,168,76,0.4)',
+              boxShadow: '0 0 12px rgba(201,168,76,0.15)',
+            }}
           >
-            <Image
-              src="/mavericks-logo.jpeg"
-              alt="MVCC Logo"
-              width={40}
-              height={40}
-              style={{ objectFit: 'cover', width: '100%', height: '100%' }}
-            />
+            <img src="/mavericks-logo.jpeg" alt="MVCC" className="w-full h-full object-cover" />
           </div>
-          <div className="flex items-baseline gap-1.5">
+          <div>
             <span
-              className="font-display text-xl tracking-[3px]"
+              className="font-display text-lg tracking-wider"
               style={{
-                background: 'linear-gradient(135deg, var(--mm), var(--mm-light))',
+                background: 'linear-gradient(135deg, #c9a84c, #f0d080)',
                 WebkitBackgroundClip: 'text',
                 WebkitTextFillColor: 'transparent',
                 backgroundClip: 'text',
@@ -67,41 +49,47 @@ export default function Nav() {
             >
               MAVERICKS
             </span>
-            <span className="font-display text-xl tracking-[2px]" style={{ color: 'var(--text3)' }}>
+            <span className="font-display text-lg tracking-wider ml-1.5" style={{ color: 'rgba(255,255,255,0.3)' }}>
               CC
             </span>
           </div>
         </Link>
 
-        {/* Nav Links */}
+        {/* Nav links */}
         <div className="flex items-center gap-1">
-          {links.map(({ href, label }) => {
-            const active = path === href
+          {[
+            { href: '/', label: 'Standings' },
+            { href: '/schedule', label: 'Schedule' },
+            { href: '/rules', label: 'Rules' },
+          ].map(({ href, label }) => {
+            const isActive = path === href
             return (
-              <Link key={href} href={href}
-                className="relative px-4 py-2 rounded-xl text-sm font-medium transition-all"
+              <Link
+                key={href}
+                href={href}
+                className="px-3 py-1.5 rounded-lg text-sm font-medium transition-all"
                 style={{
-                  color:      active ? 'var(--text)'  : 'var(--text3)',
-                  background: active ? 'var(--bg3)'   : 'transparent',
-                  border:     active ? '1px solid var(--border2)' : '1px solid transparent',
+                  color: isActive ? 'var(--accent)' : 'var(--text2)',
+                  background: isActive ? 'rgba(0,229,255,0.08)' : 'transparent',
+                  border: `1px solid ${isActive ? 'rgba(0,229,255,0.2)' : 'transparent'}`,
+                  boxShadow: isActive ? '0 0 12px rgba(0,229,255,0.1)' : 'none',
                 }}
               >
-                {active && (
-                  <span style={{
-                    position: 'absolute', bottom: -1, left: '50%',
-                    transform: 'translateX(-50%)',
-                    width: '40%', height: 2,
-                    background: 'linear-gradient(90deg, transparent, var(--mm), transparent)',
-                    borderRadius: 99,
-                  }} />
-                )}
                 {label}
               </Link>
             )
           })}
+
           {path === '/admin' && (
-            <span className="px-3 py-1.5 rounded-lg text-xs font-mono tracking-widest ml-1"
-              style={{ color: 'var(--mm)', border: '1px solid var(--mm-border)', background: 'var(--mm-dim)' }}>
+            <span
+              className="px-3 py-1.5 rounded-lg text-xs font-mono tracking-widest"
+              style={{
+                color: 'var(--gold)',
+                border: '1px solid rgba(245,158,11,0.3)',
+                background: 'rgba(245,158,11,0.08)',
+                boxShadow: '0 0 12px rgba(245,158,11,0.1)',
+              }}
+            >
               ADMIN
             </span>
           )}

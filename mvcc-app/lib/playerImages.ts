@@ -18,7 +18,7 @@ export const PLAYER_IMAGES: Record<string, string> = {
   'Manoj':    'Sai Manoj Kagolanu.jpeg',
   'Saran':    'Saran Damacharla.jpeg',
   'Siddarth': 'Siddharth Chawla.jpeg',
-  'Gani':     'Slva Ganesh Asodi.jpeg',
+  'Gani':     '(Gani) Siva Ganesh Asodi.jpeg',
   'Suman':    'Suman Reddy Gaddam.jpeg',
   'Viswa':    'Vishwanath Kasu.jpeg',
   'Yeswanth': 'Yashwant Kumar.jpeg',
