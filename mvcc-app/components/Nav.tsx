@@ -13,6 +13,12 @@ export default function Nav() {
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
+  const links = [
+    { href: '/',         label: 'Standings' },
+    { href: '/schedule', label: 'Schedule'  },
+    { href: '/rules',    label: 'Rules'     },
+  ]
+
   return (
     <nav style={{
       position: 'sticky', top: 0, zIndex: 50,
@@ -33,34 +39,23 @@ export default function Nav() {
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             fontSize: 18,
             boxShadow: '0 2px 12px rgba(201,168,76,0.3)',
-            transition: 'box-shadow 0.3s ease',
-          }}
-          className="group-hover:shadow-[0_4px_20px_rgba(201,168,76,0.5)]"
-          >
+          }}>
             🏏
           </div>
           <div className="flex items-baseline gap-1">
             <span className="font-display text-2xl tracking-[3px]" style={{ color: 'var(--text)' }}>MVCC</span>
-            <span
-              className="font-display text-2xl tracking-[3px]"
-              style={{
-                background: 'linear-gradient(135deg, var(--mm), var(--mm-light))',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                backgroundClip: 'text',
-              }}
-            >
-              T30
-            </span>
+            <span className="font-display text-2xl tracking-[3px]" style={{
+              background: 'linear-gradient(135deg, var(--mm), var(--mm-light))',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+            }}>T30</span>
           </div>
         </Link>
 
         {/* Nav Links */}
         <div className="flex items-center gap-1">
-          {[
-            { href: '/',         label: 'Standings' },
-            { href: '/schedule', label: 'Schedule'  },
-          ].map(({ href, label }) => {
+          {links.map(({ href, label }) => {
             const active = path === href
             return (
               <Link key={href} href={href}
