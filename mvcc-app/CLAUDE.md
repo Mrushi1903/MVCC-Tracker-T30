@@ -9,18 +9,43 @@ The app is publicly accessible (anyone with the link can view stats) with an adm
 ---
 
 ## Tech Stack
-- **Frontend + API**: Next.js 14 (App Router, TypeScript)
+- **Frontend + API**: Next.js 15 (App Router, TypeScript)
 - **Database**: Supabase (PostgreSQL)
+- **Auth**: Supabase Google OAuth — admin only (mrushireddy2232@gmail.com)
 - **Styling**: Tailwind CSS + custom CSS variables
 - **Fonts**: Bebas Neue (display), Outfit (body), JetBrains Mono (data/labels)
-- **Hosting**: Vercel (free tier)
-- **Auth**: Simple password protection on admin page (password: `mvcc2026`)
+- **Hosting**: Vercel
+
+---
+
+## Brand & Design
+- **Primary color (MM)**: Gold `#c9a84c`
+- **Secondary color (HB)**: Electric Blue `#3b82f6`
+- **Background**: Deep Navy `#05080f`
+- **Theme**: Dark, premium sports — ESPN/Bundesliga feel
+- **Logo**: Mavericks CC horse logo at `public/mavericks-logo.jpeg`
+- **Player photos**: `public/players/[Full Name].jpeg` — mapped in `lib/playerImages.ts`
+- **Watermark**: Mavericks horse logo as pulsing background layer
+
+---
+
+## Rules — CRITICAL
+1. **Never auto-push to GitHub** — always give files so Rushi copies and pushes himself
+2. **Always give files as downloadable code** — not just inline text
+3. **Build one feature at a time**, test before moving to next
+4. **Admin emails allowlist** is hardcoded in `admin/page.tsx` and `MobileNav.tsx`:
+   ```ts
+   const ADMIN_EMAILS = ['mrushireddy2232@gmail.com']
+   ```
+   Adding more admins = add email to this array in both files
+5. **POTM is NEVER auto-assigned** — always manual in admin panel
+6. **Minimum 1 complete over** for bowling points to count
 
 ---
 
 ## The Two Teams
 
-### 🟠 MIGHTY MAVERICKS (MMs) — 11 Players
+### 🟡 MIGHTY MAVERICKS (MMs) — 11 Players
 | Short Name | Full Name | Jersey |
 |---|---|---|
 | Amar | Amarendra Nuvvala | — |
@@ -64,21 +89,17 @@ The app is publicly accessible (anyone with the link can view stats) with an adm
 | Runout (Helper) | +5 |
 | Stumping | +10 |
 
-### Batting Bonus
+### Batting Bonus (tiered — only highest applies)
 | Milestone | Bonus |
 |---|---|
 | 30+ runs | +10 |
 | 50+ runs | +20 |
 | 100+ runs | +40 |
 
-> Milestones are tiered (not stacked) — only the highest tier applies.
-
 ### Bowling Bonus
 | Condition | Bonus |
 |---|---|
-| Economy < 4 runs/over AND ≥1 wicket | +10 |
-
-> **Rule**: Bowler must bowl a **minimum of 1 complete over** for any bowling points (wickets + economy bonus) to count.
+| Economy < 4 runs/over AND ≥1 wicket AND ≥1 over | +10 |
 
 ### Award Bonus
 | Award | Points |
@@ -88,17 +109,26 @@ The app is publicly accessible (anyone with the link can view stats) with an adm
 
 ---
 
+## Database Schema (Supabase)
+- **players** — 22 players with team, jersey, CC player ID
+- **matches** — 8 season matches + opponent_short field
+- **performances** — MVCC per-player per-match stats + calculated points
+- **opponent_batting** — opponent batsmen stats per match (NEW)
+- **opponent_bowling** — opponent bowler stats per match (NEW)
+
+---
+
 ## Season Schedule (2026)
-| # | Date | Time | Opponent | Ground |
-|---|---|---|---|---|
-| 1 | May 16 | 9:00 AM | Michigan Rangers CC | Belle-Isle |
-| 2 | May 30 | 2:30 PM | Michigan International CA Chargers | Lyon Oaks |
-| 3 | Jun 6 | 9:00 AM | Michigan Warriors | Clinton |
-| 4 | Jun 13 | 9:00 AM | Detroit Super Kings CC Bulls | Clinton |
-| 5 | Jun 27 | 9:00 AM | Majestic Lions CC | Jayne |
-| 6 | Jul 11 | 2:30 PM | The Squad Cricket Club | Sterling Heights |
-| 7 | Jul 18 | 9:00 AM | Royal Bengals CC | Lyon Oaks |
-| 8 | Jul 25 | 9:00 AM | Motown CC | Sterling Heights |
+| # | Date | Time | Opponent | Ground | Status |
+|---|---|---|---|---|---|
+| 1 | May 16 | 9:00 AM | Michigan Rangers CC | Belle-Isle | ✅ LOST |
+| 2 | May 30 | 2:30 PM | Michigan International CA Chargers | Lyon Oaks | Upcoming |
+| 3 | Jun 6  | 9:00 AM | Michigan Warriors | Clinton | Upcoming |
+| 4 | Jun 13 | 9:00 AM | Detroit Super Kings CC Bulls | Clinton | Upcoming |
+| 5 | Jun 27 | 9:00 AM | Majestic Lions CC | Jayne | Upcoming |
+| 6 | Jul 11 | 2:30 PM | The Squad Cricket Club | Sterling Heights | Upcoming |
+| 7 | Jul 18 | 9:00 AM | Royal Bengals CC | Lyon Oaks | Upcoming |
+| 8 | Jul 25 | 9:00 AM | Motown CC | Sterling Heights | Upcoming |
 
 ---
 
@@ -106,81 +136,75 @@ The app is publicly accessible (anyone with the link can view stats) with an adm
 ```
 mvcc-app/
 ├── app/
-│   ├── page.tsx              # Home — leaderboard + schedule tabs
-│   ├── layout.tsx            # Root layout
-│   ├── globals.css           # Global styles + CSS variables
-│   └── admin/
-│       └── page.tsx          # Password-protected scorecard entry
+│   ├── page.tsx              # Home — leaderboard + podium
+│   ├── layout.tsx            # Root layout + MobileNav
+│   ├── globals.css           # Global styles + CSS variables + animations
+│   ├── schedule/page.tsx     # Match schedule
+│   ├── rules/page.tsx        # Points rules + FAQ
+│   ├── admin/page.tsx        # Google OAuth admin scorecard entry
+│   └── auth/callback/route.ts # OAuth callback handler
 ├── components/
-│   ├── Nav.tsx               # Top navigation bar
+│   ├── Nav.tsx               # Desktop top navigation (hidden on mobile)
+│   ├── MobileNav.tsx         # Mobile bottom navigation (4 tabs)
 │   ├── TeamBanner.tsx        # MM vs HB total points + progress bar
-│   ├── PlayerModal.tsx       # Click player → stats modal
-│   └── ScheduleCard.tsx      # Individual match card
+│   ├── PlayerModal.tsx       # Click player → stats modal with photo
+│   ├── ScorecardModal.tsx    # Full match scorecard (both innings)
+│   ├── ScheduleCard.tsx      # Match card — clickable if completed
+│   ├── BackgroundCanvas.tsx  # Animated canvas — particles/aurora/rings
+│   └── HorseWatermark.tsx    # Mavericks horse logo watermark
 ├── lib/
 │   ├── supabase.ts           # Supabase client + TypeScript types
-│   └── points.ts             # Points calculation engine (all rules)
-├── schema.sql                # Full Supabase DB schema + seed data
-├── .env.local                # Local env vars (gitignored)
-└── .env.production           # Production env vars reference
+│   ├── points.ts             # Points calculation engine
+│   ├── parseCSV.ts           # CricClub CSV parser (MVCC + opponent)
+│   └── playerImages.ts       # short_name → filename map for photos
+└── public/
+    ├── mavericks-logo.jpeg   # Club logo (also used as watermark)
+    └── players/              # 22 player photos (Full Name.jpeg format)
 ```
-
----
-
-## Database Schema (Supabase)
-
-### Tables
-- **players** — all 22 players with team, jersey, CC player ID
-- **matches** — 8 season matches with date, opponent, ground, result
-- **performances** — per-player per-match stats + calculated points
-
-### Key Rules in `lib/points.ts`
-- Runs × 1
-- Wickets × 20 (only if overs_bowled ≥ 1)
-- Economy bonus: runs_conceded / overs_bowled < 4 AND wickets ≥ 1 AND overs ≥ 1
-- Batting milestone: tiered (30+/50+/100+), highest applies only
-- POTM: +30, MVP: +50
 
 ---
 
 ## Environment Variables
 ```env
 NEXT_PUBLIC_SUPABASE_URL=https://tptzsphhcuvbbnkuhisr.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=<your-anon-key>
-ADMIN_PASSWORD=mvcc2026
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon key in Vercel>
 ```
 
 ---
 
-## Running Locally
-```bash
-npm install
-npm run dev
-# Open http://localhost:3000
-```
-
-## Deploying to Vercel
-1. Push to GitHub (`Mrushi1903/mvcc-tracker`)
-2. Import repo in Vercel dashboard
-3. Add the 3 environment variables above
-4. Deploy — done!
-
-Every `git push` to `main` auto-deploys to Vercel.
-
----
-
-## Admin Workflow (After Each Match)
-1. Go to `/admin` on the live URL
-2. Enter password: `Enter password when prompted`
+## Admin Workflow
+1. Go to `/admin` on live URL
+2. Sign in with Google (mrushireddy2232@gmail.com)
 3. Select the match
-4. Enter result + scores
-5. Fill in stats for every player who played
-6. Hit **SAVE SCORECARD** — points auto-calculate and leaderboard updates live
+4. Upload CricClub CSV export
+5. Parser auto-fills ALL stats — MVCC batting/bowling/fielding + opponent batting/bowling
+6. Preview opponent stats shown in admin before saving
+7. Confirm result + scores
+8. Hit **SAVE SCORECARD** — everything updates live
 
 ---
 
-## Future Enhancements
-- [ ] Google OAuth login for admin (replace password)
-- [ ] Match MVP voting
-- [ ] Season-end awards page
-- [ ] WhatsApp-shareable match summary card
-- [ ] Push notifications after scorecard is entered
+## Completed Features ✅
+- Live leaderboard with count-up animation
+- Top 3 podium with gold shimmer + floating medal
+- Player modal with match breakdown + real photos
+- Schedule page with completed/upcoming sections
+- Full match scorecard modal (Cricbuzz-style, both innings)
+- Admin CSV upload — captures ALL stats including opponent
+- Google OAuth admin login (email allowlist)
+- Rules page with FAQ
+- Mobile bottom nav (4 tabs — admin tab shows if logged in)
+- MAVERICKS CC branding — navy/gold/blue theme
+- Animated background (particles, aurora glows, cricket field rings)
+- Horse watermark with breathing animation + rotating rings
+- Player profile photos on leaderboard, podium, modals
+- Opponent batting + bowling stored in Supabase
+
+## Remaining Features 🔜
+- Match Share Card (PNG download for Instagram/WhatsApp)
+- Hot 🔥 / Cold ❄️ streak indicators
+- Individual player profile page /player/[name]
+- Career stats graph (points per match)
+- Season milestones tracker
+- Multi-tournament architecture
+- Season summary / awards page
