@@ -20,6 +20,7 @@ export type Match = {
   date: string
   time: string
   opponent: string
+  opponent_short: string | null
   ground: string
   result: 'won' | 'lost' | 'tied' | 'no_result' | null
   mvcc_score: string | null
@@ -51,4 +52,25 @@ export type Performance = {
   bonus_points: number
   total_points: number
   is_potm: boolean
+}
+
+export type OpponentBatting = {
+  id: number
+  match_id: number
+  player_name: string
+  runs: number
+  balls: number
+  fours: number
+  sixes: number
+  how_out: string
+}
+
+export type OpponentBowling = {
+  id: number
+  match_id: number
+  player_name: string
+  overs: number
+  maidens: number
+  runs_conceded: number
+  wickets: number
 }

@@ -6,11 +6,7 @@ import { calculatePoints } from '@/lib/points'
 import { parseCricClubCSV } from '@/lib/parseCSV'
 import Nav from '@/components/Nav'
 
-// ── ADMIN EMAIL ALLOWLIST ─────────────────────────────────
-// Add more emails here anytime, then redeploy
-const ADMIN_EMAILS = [
-  'mrushireddy2232@gmail.com',
-]
+const ADMIN_EMAILS = ['mrushireddy2232@gmail.com']
 
 type PerfEntry = {
   player_id: number
@@ -36,71 +32,50 @@ export default function AdminPage() {
   const [userEmail, setUserEmail] = useState<string | null>(null)
   const [signingIn, setSigningIn] = useState(false)
 
-  const [players, setPlayers] = useState<Player[]>([])
-  const [matches, setMatches] = useState<Match[]>([])
+  const [players,       setPlayers]       = useState<Player[]>([])
+  const [matches,       setMatches]       = useState<Match[]>([])
   const [selectedMatch, setSelectedMatch] = useState<number | null>(null)
-  const [matchResult, setMatchResult] = useState<'won' | 'lost' | 'tied' | 'no_result'>('won')
-  const [mvccScore, setMvccScore] = useState('')
+  const [matchResult,   setMatchResult]   = useState<'won' | 'lost' | 'tied' | 'no_result'>('won')
+  const [mvccScore,     setMvccScore]     = useState('')
   const [opponentScore, setOpponentScore] = useState('')
-  const [entries, setEntries] = useState<PerfEntry[]>([])
-  const [saving, setSaving] = useState(false)
-  const [saved, setSaved] = useState(false)
+  const [entries,       setEntries]       = useState<PerfEntry[]>([])
+  const [saving,        setSaving]        = useState(false)
+  const [saved,         setSaved]         = useState(false)
 
-  const [parsing, setParsing] = useState(false)
-  const [parseMsg, setParseMsg] = useState('')
+  const [parsing,     setParsing]     = useState(false)
+  const [parseMsg,    setParseMsg]    = useState('')
   const [parsedCount, setParsedCount] = useState(0)
   const fileRef = useRef<HTMLInputElement>(null)
 
-  // ── AUTH CHECK ON MOUNT ───────────────────────────────────
   useEffect(() => {
     checkAuth()
-
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!session) {
-        setAuthState('unauthenticated')
-        setUserEmail(null)
-      } else {
+      if (!session) { setAuthState('unauthenticated'); setUserEmail(null) }
+      else {
         const email = session.user.email ?? ''
         setUserEmail(email)
-        if (ADMIN_EMAILS.includes(email)) {
-          setAuthState('authorized')
-        } else {
-          setAuthState('denied')
-        }
+        setAuthState(ADMIN_EMAILS.includes(email) ? 'authorized' : 'denied')
       }
     })
-
     return () => subscription.unsubscribe()
   }, [])
 
   async function checkAuth() {
     const { data: { session } } = await supabase.auth.getSession()
-    if (!session) {
-      setAuthState('unauthenticated')
-      return
-    }
+    if (!session) { setAuthState('unauthenticated'); return }
     const email = session.user.email ?? ''
     setUserEmail(email)
-    if (ADMIN_EMAILS.includes(email)) {
-      setAuthState('authorized')
-      fetchData()
-    } else {
-      setAuthState('denied')
-    }
+    if (ADMIN_EMAILS.includes(email)) { setAuthState('authorized'); fetchData() }
+    else setAuthState('denied')
   }
 
   async function handleGoogleSignIn() {
     setSigningIn(true)
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
-      },
+      options: { redirectTo: `${window.location.origin}/auth/callback` },
     })
-    if (error) {
-      console.error('Sign in error:', error)
-      setSigningIn(false)
-    }
+    if (error) { console.error(error); setSigningIn(false) }
   }
 
   async function handleSignOut() {
@@ -124,9 +99,7 @@ export default function AdminPage() {
     if (m) setMatches(m)
   }
 
-  useEffect(() => {
-    if (authState === 'authorized') fetchData()
-  }, [authState])
+  useEffect(() => { if (authState === 'authorized') fetchData() }, [authState])
 
   async function handleCSVUpload(file: File) {
     if (!file) return
@@ -134,33 +107,38 @@ export default function AdminPage() {
     setParseMsg('Reading CSV...')
     setParsedCount(0)
     try {
-      const text = await file.text()
+      const text   = await file.text()
       const parsed = parseCricClubCSV(text)
       const newEntries = entries.map(e => ({ ...e }))
       let count = 0
+
       for (const parsedPlayer of parsed.players) {
         const player = players.find(p => p.short_name === parsedPlayer.short_name)
         if (!player) continue
         const entry = newEntries.find(e => e.player_id === player.id)
         if (!entry) continue
-        entry.runs = parsedPlayer.runs
-        entry.balls_faced = parsedPlayer.balls_faced
-        entry.overs_bowled = parsedPlayer.overs_bowled
-        entry.runs_conceded = parsedPlayer.runs_conceded
-        entry.wickets = parsedPlayer.wickets
-        entry.catches = parsedPlayer.catches
+        entry.runs           = parsedPlayer.runs
+        entry.balls_faced    = parsedPlayer.balls_faced
+        entry.overs_bowled   = parsedPlayer.overs_bowled
+        entry.runs_conceded  = parsedPlayer.runs_conceded
+        entry.wickets        = parsedPlayer.wickets
+        entry.catches        = parsedPlayer.catches
         entry.runout_fielder = parsedPlayer.runout_fielder
-        entry.runout_helper = parsedPlayer.runout_helper
-        entry.stumpings = parsedPlayer.stumpings
-        entry.is_potm = parsedPlayer.is_potm
+        entry.runout_helper  = parsedPlayer.runout_helper
+        entry.stumpings      = parsedPlayer.stumpings
+        entry.is_potm        = parsedPlayer.is_potm
         count++
       }
+
       setEntries(newEntries)
       setMatchResult(parsed.result)
-      if (parsed.mvcc_score) setMvccScore(parsed.mvcc_score)
+      if (parsed.mvcc_score)     setMvccScore(parsed.mvcc_score)
       if (parsed.opponent_score) setOpponentScore(parsed.opponent_score)
       setParsedCount(count)
-      setParseMsg(`✅ Parsed ${count} players! Review below and save.`)
+
+      const oppBatCount = parsed.opponent_batting.length
+      const oppBowCount = parsed.opponent_bowling.length
+      setParseMsg(`✅ Parsed ${count} MVCC players · ${oppBatCount} opp batsmen · ${oppBowCount} opp bowlers`)
     } catch (err) {
       console.error(err)
       setParseMsg('⚠️ Error parsing CSV. Check the file format.')
@@ -175,28 +153,40 @@ export default function AdminPage() {
   async function handleSave() {
     if (!selectedMatch) return alert('Select a match first')
     setSaving(true)
-    await supabase.from('matches').update({
-      is_played: true,
-      result: matchResult,
-      mvcc_score: mvccScore,
+
+    // 1 — re-parse CSV to get opponent data fresh (stored in state would be cleaner but this is safe)
+    // We'll save what we have from the last parse — store it in state
+    // Update match record
+    const matchData: Record<string, unknown> = {
+      is_played:    true,
+      result:       matchResult,
+      mvcc_score:   mvccScore,
       opponent_score: opponentScore,
       potm_player_id: entries.find(e => e.is_potm)?.player_id ?? null,
-    }).eq('id', selectedMatch)
+    }
+
+    await supabase.from('matches').update(matchData).eq('id', selectedMatch)
+
+    // 2 — delete old MVCC performances
     await supabase.from('performances').delete().eq('match_id', selectedMatch)
+
+    // 3 — insert new MVCC performances
     const toInsert = entries.filter(e =>
       e.runs > 0 || e.wickets > 0 || e.catches > 0 || e.runout_fielder > 0 ||
       e.runout_helper > 0 || e.stumpings > 0 || e.is_potm || e.overs_bowled > 0
     ).map(e => {
       const pts = calculatePoints({
-        runs: e.runs, balls_faced: e.balls_faced, overs_bowled: e.overs_bowled,
-        runs_conceded: e.runs_conceded, wickets: e.wickets, catches: e.catches,
+        runs: e.runs, balls_faced: e.balls_faced,
+        overs_bowled: e.overs_bowled, runs_conceded: e.runs_conceded,
+        wickets: e.wickets, catches: e.catches,
         runout_fielder: e.runout_fielder, runout_helper: e.runout_helper,
         stumpings: e.stumpings, is_potm: e.is_potm,
       })
       return {
         match_id: selectedMatch, player_id: e.player_id,
-        runs: e.runs, balls_faced: e.balls_faced, overs_bowled: e.overs_bowled,
-        runs_conceded: e.runs_conceded, wickets: e.wickets, catches: e.catches,
+        runs: e.runs, balls_faced: e.balls_faced,
+        overs_bowled: e.overs_bowled, runs_conceded: e.runs_conceded,
+        wickets: e.wickets, catches: e.catches,
         runout_fielder: e.runout_fielder, runout_helper: e.runout_helper,
         stumpings: e.stumpings, is_potm: e.is_potm,
         batting_points: pts.batting_points, bowling_points: pts.bowling_points,
@@ -205,26 +195,93 @@ export default function AdminPage() {
       }
     })
     if (toInsert.length > 0) await supabase.from('performances').insert(toInsert)
+
+    // 4 — delete + re-insert opponent batting
+    await supabase.from('opponent_batting').delete().eq('match_id', selectedMatch)
+    if (lastParsed?.opponent_batting && lastParsed.opponent_batting.length > 0) {
+      await supabase.from('opponent_batting').insert(
+        lastParsed.opponent_batting.map(b => ({ match_id: selectedMatch, ...b }))
+      )
+    }
+
+    // 5 — delete + re-insert opponent bowling
+    await supabase.from('opponent_bowling').delete().eq('match_id', selectedMatch)
+    if (lastParsed?.opponent_bowling && lastParsed.opponent_bowling.length > 0) {
+      await supabase.from('opponent_bowling').insert(
+        lastParsed.opponent_bowling.map(b => ({ match_id: selectedMatch, ...b }))
+      )
+    }
+
+    // 6 — update opponent_short name
+    if (lastParsed?.opponent_name) {
+      await supabase.from('matches')
+        .update({ opponent_short: lastParsed.opponent_name })
+        .eq('id', selectedMatch)
+    }
+
     setSaving(false)
     setSaved(true)
     setTimeout(() => setSaved(false), 3000)
   }
 
+  // Store last parsed result so handleSave can access opponent data
+  const [lastParsed, setLastParsed] = useState<Awaited<ReturnType<typeof parseCricClubCSV>> | null>(null)
+
+  async function handleCSVUploadFull(file: File) {
+    if (!file) return
+    setParsing(true)
+    setParseMsg('Reading CSV...')
+    setParsedCount(0)
+    try {
+      const text   = await file.text()
+      const parsed = parseCricClubCSV(text)
+      setLastParsed(parsed)
+
+      const newEntries = entries.map(e => ({ ...e }))
+      let count = 0
+      for (const parsedPlayer of parsed.players) {
+        const player = players.find(p => p.short_name === parsedPlayer.short_name)
+        if (!player) continue
+        const entry = newEntries.find(e => e.player_id === player.id)
+        if (!entry) continue
+        entry.runs           = parsedPlayer.runs
+        entry.balls_faced    = parsedPlayer.balls_faced
+        entry.overs_bowled   = parsedPlayer.overs_bowled
+        entry.runs_conceded  = parsedPlayer.runs_conceded
+        entry.wickets        = parsedPlayer.wickets
+        entry.catches        = parsedPlayer.catches
+        entry.runout_fielder = parsedPlayer.runout_fielder
+        entry.runout_helper  = parsedPlayer.runout_helper
+        entry.stumpings      = parsedPlayer.stumpings
+        entry.is_potm        = parsedPlayer.is_potm
+        count++
+      }
+      setEntries(newEntries)
+      setMatchResult(parsed.result)
+      if (parsed.mvcc_score)     setMvccScore(parsed.mvcc_score)
+      if (parsed.opponent_score) setOpponentScore(parsed.opponent_score)
+      setParsedCount(count)
+      setParseMsg(`✅ ${count} MVCC players · ${parsed.opponent_batting.length} opp batsmen · ${parsed.opponent_bowling.length} opp bowlers · Result: ${parsed.result.toUpperCase()}`)
+    } catch (err) {
+      console.error(err)
+      setParseMsg('⚠️ Error parsing CSV. Check the file format.')
+    }
+    setParsing(false)
+  }
+
   const mmPlayers = players.filter(p => p.team === 'MM')
   const hbPlayers = players.filter(p => p.team === 'HB')
 
-  // ── LOADING ───────────────────────────────────────────────
+  // ── LOADING ────────────────────────────────────────────────
   if (authState === 'loading') {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg)' }}>
-        <div className="font-mono text-xs tracking-[4px] uppercase" style={{ color: 'var(--text3)' }}>
-          Checking auth...
-        </div>
+        <div className="font-mono text-xs tracking-[4px] uppercase" style={{ color: 'var(--text3)' }}>Checking auth...</div>
       </div>
     )
   }
 
-  // ── SIGN IN SCREEN ────────────────────────────────────────
+  // ── SIGN IN ────────────────────────────────────────────────
   if (authState === 'unauthenticated') {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg)' }}>
@@ -234,17 +291,9 @@ export default function AdminPage() {
             <div className="font-display text-3xl tracking-wider" style={{ color: 'var(--text)' }}>ADMIN ACCESS</div>
             <p className="font-mono text-xs mt-2 tracking-widest" style={{ color: 'var(--text3)' }}>MVCC TOURNAMENT 2026</p>
           </div>
-          <button
-            onClick={handleGoogleSignIn}
-            disabled={signingIn}
+          <button onClick={handleGoogleSignIn} disabled={signingIn}
             className="w-full py-3 rounded-xl font-medium text-sm flex items-center justify-center gap-3 transition-all"
-            style={{
-              background: signingIn ? 'var(--bg3)' : 'white',
-              color: '#1f1f1f',
-              cursor: signingIn ? 'not-allowed' : 'pointer',
-              opacity: signingIn ? 0.7 : 1,
-            }}
-          >
+            style={{ background: signingIn ? 'var(--bg3)' : 'white', color: '#1f1f1f', cursor: signingIn ? 'not-allowed' : 'pointer', opacity: signingIn ? 0.7 : 1 }}>
             {!signingIn && (
               <svg width="18" height="18" viewBox="0 0 18 18">
                 <path fill="#4285F4" d="M16.51 8H8.98v3h4.3c-.18 1-.74 1.48-1.6 2.04v2.01h2.6a7.8 7.8 0 0 0 2.38-5.88c0-.57-.05-.66-.15-1.18z"/>
@@ -255,15 +304,13 @@ export default function AdminPage() {
             )}
             {signingIn ? 'Redirecting...' : 'Sign in with Google'}
           </button>
-          <p className="text-center font-mono text-xs mt-4" style={{ color: 'var(--text3)' }}>
-            Only authorised MVCC admins can access this panel
-          </p>
+          <p className="text-center font-mono text-xs mt-4" style={{ color: 'var(--text3)' }}>Only authorised MVCC admins</p>
         </div>
       </div>
     )
   }
 
-  // ── ACCESS DENIED ─────────────────────────────────────────
+  // ── ACCESS DENIED ──────────────────────────────────────────
   if (authState === 'denied') {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--bg)' }}>
@@ -272,11 +319,8 @@ export default function AdminPage() {
           <div className="font-display text-3xl tracking-wider mb-2" style={{ color: 'var(--red)' }}>ACCESS DENIED</div>
           <p className="text-sm mb-1" style={{ color: 'var(--text2)' }}>{userEmail}</p>
           <p className="font-mono text-xs mb-6" style={{ color: 'var(--text3)' }}>This email is not on the admin list</p>
-          <button
-            onClick={handleSignOut}
-            className="px-6 py-2 rounded-xl font-mono text-xs tracking-widest uppercase"
-            style={{ background: 'var(--bg3)', border: '1px solid var(--border2)', color: 'var(--text2)', cursor: 'pointer' }}
-          >
+          <button onClick={handleSignOut} className="px-6 py-2 rounded-xl font-mono text-xs tracking-widest uppercase"
+            style={{ background: 'var(--bg3)', border: '1px solid var(--border2)', color: 'var(--text2)', cursor: 'pointer' }}>
             Sign Out
           </button>
         </div>
@@ -284,7 +328,7 @@ export default function AdminPage() {
     )
   }
 
-  // ── ADMIN PANEL ───────────────────────────────────────────
+  // ── ADMIN PANEL ────────────────────────────────────────────
   return (
     <div style={{ background: 'var(--bg)', minHeight: '100vh' }}>
       <Nav />
@@ -296,42 +340,37 @@ export default function AdminPage() {
           </div>
           <div className="text-right">
             <p className="font-mono text-xs mb-2" style={{ color: 'var(--text3)' }}>{userEmail}</p>
-            <button
-              onClick={handleSignOut}
+            <button onClick={handleSignOut}
               className="px-4 py-1.5 rounded-lg font-mono text-xs tracking-widest uppercase transition-all"
-              style={{ background: 'var(--bg3)', border: '1px solid var(--border2)', color: 'var(--text3)', cursor: 'pointer' }}
-            >
+              style={{ background: 'var(--bg3)', border: '1px solid var(--border2)', color: 'var(--text3)', cursor: 'pointer' }}>
               Sign Out
             </button>
           </div>
         </div>
 
-        {/* ── STEP 1: Match selector ── */}
+        {/* STEP 1 — Match selector */}
         <div className="rounded-xl p-5 mb-6" style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
           <div className="font-mono text-xs tracking-[3px] uppercase mb-3" style={{ color: 'var(--text3)' }}>1. Select Match</div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
             {matches.map(m => (
-              <button
-                key={m.id}
-                onClick={() => { setSelectedMatch(m.id); setParsedCount(0); setParseMsg('') }}
+              <button key={m.id}
+                onClick={() => { setSelectedMatch(m.id); setParsedCount(0); setParseMsg(''); setLastParsed(null) }}
                 className="p-3 rounded-xl text-left transition-all"
                 style={{
                   background: selectedMatch === m.id ? 'var(--mm-dim)' : 'var(--bg3)',
                   border: `1px solid ${selectedMatch === m.id ? 'var(--mm-border)' : 'var(--border)'}`,
                   cursor: 'pointer',
-                }}
-              >
+                }}>
                 <div className="font-display text-lg" style={{ color: selectedMatch === m.id ? 'var(--mm)' : 'var(--text)' }}>
                   Match {m.match_number}
                 </div>
                 <div className="font-mono text-xs mt-0.5" style={{ color: 'var(--text3)' }}>
                   vs {m.opponent.split(' ').slice(0, 2).join(' ')}
                 </div>
-                <div className="font-mono text-xs" style={{ color: 'var(--text3)' }}>
-                  {formatMatchDate(m.date)}
-                </div>
+                <div className="font-mono text-xs" style={{ color: 'var(--text3)' }}>{formatMatchDate(m.date)}</div>
                 {m.is_played && (
-                  <div className="font-mono text-xs mt-1" style={{ color: m.result === 'won' ? 'var(--green)' : m.result === 'lost' ? 'var(--red)' : 'var(--text3)' }}>
+                  <div className="font-mono text-xs mt-1"
+                    style={{ color: m.result === 'won' ? 'var(--green)' : m.result === 'lost' ? 'var(--red)' : 'var(--text3)' }}>
                     {m.result?.toUpperCase()}
                   </div>
                 )}
@@ -342,32 +381,60 @@ export default function AdminPage() {
 
         {selectedMatch && (
           <>
-            {/* ── STEP 2: CSV Upload ── */}
+            {/* STEP 2 — CSV Upload */}
             <div className="rounded-xl p-5 mb-6" style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
               <div className="font-mono text-xs tracking-[3px] uppercase mb-1" style={{ color: 'var(--text3)' }}>2. Upload CricClub CSV</div>
               <p className="text-xs mb-3" style={{ color: 'var(--text3)' }}>
-                From CricClub scorecard → click <strong style={{ color: 'var(--text2)' }}>Export to Excel/CSV</strong> → upload here.
+                Exports both MVCC + opponent stats automatically.
               </p>
               <div
                 className="border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all"
                 style={{ borderColor: parsedCount > 0 ? 'var(--green)' : 'var(--border2)', background: 'var(--bg3)' }}
                 onClick={() => fileRef.current?.click()}
                 onDragOver={e => e.preventDefault()}
-                onDrop={e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) handleCSVUpload(f) }}
+                onDrop={e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) handleCSVUploadFull(f) }}
               >
                 <div className="text-4xl mb-3">{parsedCount > 0 ? '✅' : '📊'}</div>
                 <div className="font-display text-xl tracking-wider mb-1" style={{ color: 'var(--text)' }}>
                   {parsing ? 'PARSING...' : parsedCount > 0 ? `${parsedCount} PLAYERS LOADED` : 'DROP CSV HERE'}
                 </div>
                 <div className="font-mono text-xs" style={{ color: parsedCount > 0 ? 'var(--green)' : 'var(--text3)' }}>
-                  {parseMsg || 'or click to browse · viewScorecardExcel.csv'}
+                  {parseMsg || 'or click to browse · CricClub export CSV'}
                 </div>
                 <input ref={fileRef} type="file" accept=".csv" className="hidden"
-                  onChange={e => { const f = e.target.files?.[0]; if (f) handleCSVUpload(f); e.target.value = '' }} />
+                  onChange={e => { const f = e.target.files?.[0]; if (f) handleCSVUploadFull(f); e.target.value = '' }} />
               </div>
+
+              {/* Opponent preview */}
+              {lastParsed && lastParsed.opponent_batting.length > 0 && (
+                <div className="mt-4 grid grid-cols-2 gap-3">
+                  <div className="rounded-xl p-3" style={{ background: 'var(--bg4)', border: '1px solid var(--border)' }}>
+                    <div className="font-mono text-xs tracking-widest uppercase mb-2" style={{ color: 'var(--text3)' }}>
+                      Opp Batting ({lastParsed.opponent_batting.length})
+                    </div>
+                    {lastParsed.opponent_batting.slice(0, 4).map((b, i) => (
+                      <div key={i} className="flex justify-between text-xs py-0.5">
+                        <span style={{ color: 'var(--text2)' }}>{b.player_name.split(' ')[0]}</span>
+                        <span className="font-mono" style={{ color: 'var(--hb)' }}>{b.runs} ({b.balls})</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="rounded-xl p-3" style={{ background: 'var(--bg4)', border: '1px solid var(--border)' }}>
+                    <div className="font-mono text-xs tracking-widest uppercase mb-2" style={{ color: 'var(--text3)' }}>
+                      Opp Bowling ({lastParsed.opponent_bowling.length})
+                    </div>
+                    {lastParsed.opponent_bowling.slice(0, 4).map((b, i) => (
+                      <div key={i} className="flex justify-between text-xs py-0.5">
+                        <span style={{ color: 'var(--text2)' }}>{b.player_name.split(' ')[0]}</span>
+                        <span className="font-mono" style={{ color: 'var(--hb)' }}>{b.wickets}/{b.runs_conceded} ({b.overs})</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
-            {/* ── STEP 3: Match result ── */}
+            {/* STEP 3 — Match result */}
             <div className="rounded-xl p-5 mb-6" style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
               <div className="font-mono text-xs tracking-[3px] uppercase mb-3" style={{ color: 'var(--text3)' }}>3. Confirm Match Result</div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
@@ -377,10 +444,11 @@ export default function AdminPage() {
                     style={{
                       background: matchResult === r ? 'var(--bg3)' : 'transparent',
                       border: `1px solid ${matchResult === r ? 'var(--border2)' : 'var(--border)'}`,
-                      color: matchResult === r ? r === 'won' ? 'var(--green)' : r === 'lost' ? 'var(--red)' : 'var(--text)' : 'var(--text3)',
+                      color: matchResult === r ? (r === 'won' ? 'var(--green)' : r === 'lost' ? 'var(--red)' : 'var(--text)') : 'var(--text3)',
                       cursor: 'pointer',
-                    }}
-                  >{r.replace('_', ' ')}</button>
+                    }}>
+                    {r.replace('_', ' ')}
+                  </button>
                 ))}
               </div>
               <div className="grid grid-cols-2 gap-3">
@@ -399,14 +467,15 @@ export default function AdminPage() {
               </div>
             </div>
 
-            {/* ── STEP 4: Player stats ── */}
+            {/* STEP 4 — Player stats */}
             <div className="font-mono text-xs tracking-[3px] uppercase mb-3" style={{ color: 'var(--text3)' }}>4. Review & Edit Stats</div>
             {[
-              { label: '🟠 MIGHTY MAVERICKS', players: mmPlayers },
-              { label: '🔵 HELL BOYS', players: hbPlayers },
+              { label: '🟡 MIGHTY MAVERICKS', players: mmPlayers },
+              { label: '🔵 HELL BOYS',        players: hbPlayers },
             ].map(team => (
               <div key={team.label} className="rounded-xl overflow-hidden mb-6" style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
-                <div className="px-5 py-3 font-display text-xl tracking-wider" style={{ background: 'var(--bg3)', borderBottom: '1px solid var(--border)', color: 'var(--text)' }}>
+                <div className="px-5 py-3 font-display text-xl tracking-wider"
+                  style={{ background: 'var(--bg3)', borderBottom: '1px solid var(--border)', color: 'var(--text)' }}>
                   {team.label}
                 </div>
                 <div className="overflow-x-auto">
@@ -434,7 +503,9 @@ export default function AdminPage() {
                           <tr key={player.id} style={{ borderBottom: '1px solid var(--border)', background: hasStats ? '#ffffff06' : 'transparent' }}>
                             <td className="px-3 py-2">
                               <div className="font-medium" style={{ color: 'var(--text)' }}>{player.short_name}</div>
-                              <div className="font-display text-xs" style={{ color: pts.total_points > 0 ? 'var(--mm)' : 'var(--text3)' }}>{pts.total_points} pts</div>
+                              <div className="font-display text-xs" style={{ color: pts.total_points > 0 ? 'var(--mm)' : 'var(--text3)' }}>
+                                {pts.total_points} pts
+                              </div>
                             </td>
                             {(['runs', 'balls_faced', 'overs_bowled', 'runs_conceded', 'wickets', 'catches', 'runout_fielder', 'runout_helper', 'stumpings'] as const).map(field => (
                               <td key={field} className="px-2 py-2">
@@ -469,7 +540,7 @@ export default function AdminPage() {
               </div>
             ))}
 
-            {/* ── SAVE ── */}
+            {/* SAVE */}
             <button onClick={handleSave} disabled={saving}
               className="w-full py-4 rounded-xl font-display text-2xl tracking-wider transition-all"
               style={{
