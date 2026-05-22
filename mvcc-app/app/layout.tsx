@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import './globals.css'
+import MobileNav from '@/components/MobileNav'
 
 export const metadata: Metadata = {
   title: 'MVCC Internal Tournament 2026',
@@ -13,7 +14,10 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className="grain">{children}</body>
+      <body className="grain">
+        {children}
+        <MobileNav />
+      </body>
     </html>
   )
 }
