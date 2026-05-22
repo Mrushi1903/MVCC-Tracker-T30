@@ -20,15 +20,13 @@ function useCountUp(target: number, duration = 1200) {
 }
 
 export default function TeamBanner({ mmTotal, hbTotal }: Props) {
-  const total     = mmTotal + hbTotal
-  const mmPct     = total > 0 ? (mmTotal / total) * 100 : 50
-  const hbPct     = 100 - mmPct
-  const mmLeading = mmTotal >= hbTotal
-  const diff      = Math.abs(mmTotal - hbTotal)
-
-  const mmCount = useCountUp(mmTotal)
-  const hbCount = useCountUp(hbTotal)
-
+  const total      = mmTotal + hbTotal
+  const mmPct      = total > 0 ? (mmTotal / total) * 100 : 50
+  const hbPct      = 100 - mmPct
+  const mmLeading  = mmTotal >= hbTotal
+  const diff       = Math.abs(mmTotal - hbTotal)
+  const mmCount    = useCountUp(mmTotal)
+  const hbCount    = useCountUp(hbTotal)
   const [barVisible, setBarVisible] = useState(false)
   const barRef = useRef<HTMLDivElement>(null)
 
@@ -42,8 +40,7 @@ export default function TeamBanner({ mmTotal, hbTotal }: Props) {
 
   return (
     <div className="mb-10 fade-in-1">
-      <div
-        className="rounded-2xl overflow-hidden relative"
+      <div className="rounded-2xl overflow-hidden relative"
         style={{
           background: 'var(--bg2)',
           border: '1px solid var(--border2)',
@@ -56,7 +53,7 @@ export default function TeamBanner({ mmTotal, hbTotal }: Props) {
           background: 'linear-gradient(90deg, var(--mm) 0%, #c9a84c80 48%, transparent 50%, #3b82f680 52%, var(--hb) 100%)',
         }} />
 
-        {/* Background glow blobs */}
+        {/* Background glow */}
         <div style={{
           position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
           background: `
@@ -66,98 +63,106 @@ export default function TeamBanner({ mmTotal, hbTotal }: Props) {
           pointerEvents: 'none',
         }} />
 
-        <div className="relative p-6 md:p-8">
-          <div className="grid grid-cols-3 gap-4 items-center">
+        <div className="relative p-4 md:p-8">
+          <div className="grid grid-cols-3 gap-2 md:gap-4 items-center">
 
             {/* MM SIDE */}
             <div className="text-left">
-              <div className="font-mono text-xs tracking-[3px] uppercase mb-3 flex items-center gap-2"
-                style={{ color: 'var(--mm)', opacity: 0.8 }}>
+              <div className="font-mono tracking-[2px] uppercase mb-2 flex items-center gap-1.5"
+                style={{ color: 'var(--mm)', opacity: 0.8, fontSize: 'clamp(8px, 1.5vw, 12px)' }}>
                 <span style={{
-                  display: 'inline-block', width: 8, height: 8, borderRadius: '50%',
-                  background: 'var(--mm)', boxShadow: '0 0 8px var(--mm)',
+                  display: 'inline-block', width: 6, height: 6, borderRadius: '50%',
+                  background: 'var(--mm)', boxShadow: '0 0 6px var(--mm)', flexShrink: 0,
                 }} />
-                Mighty Mavericks
+                <span className="hidden sm:inline">Mighty Mavericks</span>
+                <span className="sm:hidden">MM</span>
               </div>
-              <div
-                className="font-display leading-none"
-                style={{ fontSize: 80, color: 'var(--mm)',
+              <div className="font-display leading-none"
+                style={{
+                  fontSize: 'clamp(40px, 8vw, 80px)',
+                  color: 'var(--mm)',
                   textShadow: '0 0 40px rgba(201,168,76,0.3)',
-                  letterSpacing: -2,
-                }}
-              >
+                  letterSpacing: -1,
+                }}>
                 {mmCount}
               </div>
-              <div className="font-mono text-xs tracking-widest mt-2" style={{ color: 'var(--text3)' }}>
-                TOTAL POINTS
+              <div className="font-mono tracking-widest mt-1"
+                style={{ color: 'var(--text3)', fontSize: 'clamp(8px, 1.2vw, 11px)' }}>
+                TOTAL PTS
               </div>
               {mmLeading && total > 0 && (
-                <div className="inline-flex items-center gap-2 mt-3 px-3 py-1.5 rounded-full font-mono text-xs"
+                <div className="inline-flex items-center gap-1.5 mt-2 px-2 py-1 rounded-full font-mono"
                   style={{
                     background: 'linear-gradient(135deg, var(--mm-dim), transparent)',
                     border: '1px solid var(--mm-border)',
                     color: 'var(--mm)',
+                    fontSize: 'clamp(8px, 1.2vw, 11px)',
                   }}>
-                  <span className="live-dot" style={{ width: 5, height: 5 }} />
-                  LEADING +{diff} PTS
+                  <span className="live-dot" style={{ width: 4, height: 4 }} />
+                  +{diff} PTS
                 </div>
               )}
             </div>
 
             {/* CENTER */}
             <div className="text-center">
-              <div className="font-display text-7xl tracking-widest"
-                style={{ color: 'var(--border2)', letterSpacing: 8 }}>
+              <div className="font-display tracking-widest"
+                style={{ color: 'var(--border2)', fontSize: 'clamp(36px, 7vw, 72px)', letterSpacing: 4 }}>
                 VS
               </div>
-              <div style={{ height: 1, background: 'linear-gradient(90deg, transparent, var(--border2), transparent)', margin: '12px 0' }} />
-              <div className="font-mono text-[10px] tracking-[3px] uppercase" style={{ color: 'var(--text3)' }}>
+              <div style={{ height: 1, background: 'linear-gradient(90deg, transparent, var(--border2), transparent)', margin: '8px 0' }} />
+              <div className="font-mono tracking-[2px] uppercase hidden sm:block"
+                style={{ color: 'var(--text3)', fontSize: 10 }}>
                 Season 2026
               </div>
-              <div className="font-mono text-[10px] tracking-[3px] uppercase mt-0.5" style={{ color: 'var(--text3)' }}>
+              <div className="font-mono tracking-[2px] uppercase hidden sm:block mt-0.5"
+                style={{ color: 'var(--text3)', fontSize: 10 }}>
                 T30 Internal
               </div>
             </div>
 
             {/* HB SIDE */}
             <div className="text-right">
-              <div className="font-mono text-xs tracking-[3px] uppercase mb-3 flex items-center justify-end gap-2"
-                style={{ color: 'var(--hb)', opacity: 0.8 }}>
-                Hell Boys
+              <div className="font-mono tracking-[2px] uppercase mb-2 flex items-center justify-end gap-1.5"
+                style={{ color: 'var(--hb)', opacity: 0.8, fontSize: 'clamp(8px, 1.5vw, 12px)' }}>
+                <span className="hidden sm:inline">Hell Boys</span>
+                <span className="sm:hidden">HB</span>
                 <span style={{
-                  display: 'inline-block', width: 8, height: 8, borderRadius: '50%',
-                  background: 'var(--hb)', boxShadow: '0 0 8px var(--hb)',
+                  display: 'inline-block', width: 6, height: 6, borderRadius: '50%',
+                  background: 'var(--hb)', boxShadow: '0 0 6px var(--hb)', flexShrink: 0,
                 }} />
               </div>
-              <div
-                className="font-display leading-none"
-                style={{ fontSize: 80, color: 'var(--hb)',
+              <div className="font-display leading-none"
+                style={{
+                  fontSize: 'clamp(40px, 8vw, 80px)',
+                  color: 'var(--hb)',
                   textShadow: '0 0 40px rgba(59,130,246,0.3)',
-                  letterSpacing: -2,
-                }}
-              >
+                  letterSpacing: -1,
+                }}>
                 {hbCount}
               </div>
-              <div className="font-mono text-xs tracking-widest mt-2" style={{ color: 'var(--text3)' }}>
-                TOTAL POINTS
+              <div className="font-mono tracking-widest mt-1"
+                style={{ color: 'var(--text3)', fontSize: 'clamp(8px, 1.2vw, 11px)' }}>
+                TOTAL PTS
               </div>
               {!mmLeading && total > 0 && (
-                <div className="inline-flex items-center justify-end gap-2 mt-3 px-3 py-1.5 rounded-full font-mono text-xs"
+                <div className="inline-flex items-center justify-end gap-1.5 mt-2 px-2 py-1 rounded-full font-mono"
                   style={{
                     background: 'linear-gradient(135deg, var(--hb-dim), transparent)',
                     border: '1px solid var(--hb-border)',
                     color: 'var(--hb)',
+                    fontSize: 'clamp(8px, 1.2vw, 11px)',
                   }}>
-                  <span className="live-dot" style={{ width: 5, height: 5, background: 'var(--hb)', boxShadow: '0 0 6px var(--hb)' }} />
-                  LEADING +{diff} PTS
+                  <span className="live-dot" style={{ width: 4, height: 4, background: 'var(--hb)', boxShadow: '0 0 4px var(--hb)' }} />
+                  +{diff} PTS
                 </div>
               )}
             </div>
           </div>
 
           {/* Animated progress bar */}
-          <div className="mt-8" ref={barRef}>
-            <div className="h-3 rounded-full overflow-hidden relative"
+          <div className="mt-6" ref={barRef}>
+            <div className="h-2.5 rounded-full overflow-hidden relative"
               style={{ background: 'var(--bg4)', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.4)' }}>
               <div className="h-full flex absolute inset-0">
                 <div style={{
@@ -176,11 +181,11 @@ export default function TeamBanner({ mmTotal, hbTotal }: Props) {
                 }} />
               </div>
             </div>
-            <div className="flex justify-between mt-2.5">
+            <div className="flex justify-between mt-2">
               <span className="font-mono text-xs font-semibold" style={{ color: 'var(--mm)' }}>
                 {mmPct.toFixed(1)}%
               </span>
-              <span className="font-mono text-xs" style={{ color: 'var(--text3)' }}>
+              <span className="font-mono text-xs hidden sm:block" style={{ color: 'var(--text3)' }}>
                 8 matches · 1 played
               </span>
               <span className="font-mono text-xs font-semibold" style={{ color: 'var(--hb)' }}>
