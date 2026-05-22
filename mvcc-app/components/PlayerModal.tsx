@@ -21,23 +21,10 @@ type Player = {
 
 type MatchPerf = Performance & { match: Match }
 
-function useIsDesktop() {
-  const [isDesktop, setIsDesktop] = useState(false)
-  useEffect(() => {
-    const mq = window.matchMedia('(min-width: 768px)')
-    const update = () => setIsDesktop(mq.matches)
-    update()
-    mq.addEventListener('change', update)
-    return () => mq.removeEventListener('change', update)
-  }, [])
-  return isDesktop
-}
-
 export default function PlayerModal({ player, onClose }: { player: Player; onClose: () => void }) {
   const [perfs,   setPerfs]   = useState<MatchPerf[]>([])
   const [loading, setLoading] = useState(true)
   const [imgError, setImgError] = useState(false)
-  const isDesktop = useIsDesktop()
 
   useEffect(() => {
     fetchPerfs()
@@ -71,20 +58,10 @@ export default function PlayerModal({ player, onClose }: { player: Player; onClo
 
   const imgSrc = getPlayerImage(player.short_name)
 
-  const panelInitial = isDesktop
-    ? { opacity: 0, scale: 0.95 }
-    : { opacity: 0, y: '100%' as const }
-  const panelAnimate = isDesktop
-    ? { opacity: 1, scale: 1 }
-    : { opacity: 1, y: 0 }
-  const panelExit = isDesktop
-    ? { opacity: 0, scale: 0.96, transition: { duration: 0.18, ease: [0.23, 1, 0.32, 1] as [number, number, number, number] } }
-    : { opacity: 0, y: '100%' as const, transition: { duration: 0.22, ease: [0.32, 0.72, 0, 1] as [number, number, number, number] } }
-
   return (
     <motion.div
       className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-0 md:p-4"
-      style={{ background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)' }}
+      style={{ background: 'rgba(5,8,15,0.65)', backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)' }}
       onClick={e => { if (e.target === e.currentTarget) onClose() }}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
@@ -92,11 +69,11 @@ export default function PlayerModal({ player, onClose }: { player: Player; onClo
       transition={{ duration: 0.2 }}
     >
       <motion.div
-        className="w-full md:max-w-2xl rounded-t-2xl md:rounded-2xl overflow-hidden"
-        initial={panelInitial}
-        animate={panelAnimate}
-        exit={panelExit}
-        transition={{ type: 'spring', stiffness: 260, damping: 28, mass: 0.9 }}
+        className="w-full md:max-w-2xl rounded-t-2xl md:rounded-2xl overflow-hidden modal-panel"
+        initial={{ opacity: 0, scale: 0.96 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.97, transition: { duration: 0.18, ease: [0.23, 1, 0.32, 1] } }}
+        transition={{ type: 'spring', stiffness: 280, damping: 26, mass: 0.8 }}
         style={{
           background: 'rgba(15, 21, 40, 0.92)',
           backdropFilter: 'blur(20px)',
