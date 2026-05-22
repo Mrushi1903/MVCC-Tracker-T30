@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { supabase, Player, Match } from '@/lib/supabase'
+import { motion, AnimatePresence } from 'framer-motion'
 import { calculatePoints } from '@/lib/points'
 import { parseCricClubCSV } from '@/lib/parseCSV'
 import Nav from '@/components/Nav'
@@ -353,7 +354,13 @@ export default function AdminPage() {
         </div>
 
         {/* STEP 1 — Match selector */}
-        <div className="rounded-xl p-5 mb-6" style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
+          className="rounded-xl p-5 mb-6"
+          style={{ background: 'rgba(255,255,255,0.05)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.10)' }}
+        >
           <div className="font-mono text-xs tracking-[3px] uppercase mb-3" style={{ color: 'var(--text3)' }}>1. Select Match</div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
             {matches.map(m => (
@@ -381,12 +388,18 @@ export default function AdminPage() {
               </button>
             ))}
           </div>
-        </div>
+        </motion.div>
 
         {selectedMatch && (
           <>
             {/* STEP 2 — CSV Upload */}
-            <div className="rounded-xl p-5 mb-6" style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
+            <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
+          className="rounded-xl p-5 mb-6"
+          style={{ background: 'rgba(255,255,255,0.05)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.10)' }}
+        >
               <div className="font-mono text-xs tracking-[3px] uppercase mb-1" style={{ color: 'var(--text3)' }}>2. Upload CricClub CSV</div>
               <p className="text-xs mb-3" style={{ color: 'var(--text3)' }}>
                 Exports both MVCC + opponent stats automatically.
@@ -436,10 +449,16 @@ export default function AdminPage() {
                   </div>
                 </div>
               )}
-            </div>
+            </motion.div>
 
             {/* STEP 3 — Match result */}
-            <div className="rounded-xl p-5 mb-6" style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
+            <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
+          className="rounded-xl p-5 mb-6"
+          style={{ background: 'rgba(255,255,255,0.05)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.10)' }}
+        >
               <div className="font-mono text-xs tracking-[3px] uppercase mb-3" style={{ color: 'var(--text3)' }}>3. Confirm Match Result</div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
                 {(['won', 'lost', 'tied', 'no_result'] as const).map(r => (
@@ -469,7 +488,7 @@ export default function AdminPage() {
                     style={{ background: 'var(--bg3)', border: '1px solid var(--border)', color: 'var(--text)' }} />
                 </div>
               </div>
-            </div>
+            </motion.div>
 
             {/* STEP 4 — Player stats */}
             <div className="font-mono text-xs tracking-[3px] uppercase mb-3" style={{ color: 'var(--text3)' }}>4. Review & Edit Stats</div>
@@ -477,7 +496,14 @@ export default function AdminPage() {
               { label: '🟡 MIGHTY MAVERICKS', players: mmPlayers },
               { label: '🔵 HELL BOYS',        players: hbPlayers },
             ].map(team => (
-              <div key={team.label} className="rounded-xl overflow-hidden mb-6" style={{ background: 'var(--bg2)', border: '1px solid var(--border)' }}>
+              <motion.div
+                key={team.label}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
+                className="rounded-xl overflow-hidden mb-6"
+                style={{ background: 'rgba(255,255,255,0.05)', backdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.10)' }}
+              >
                 <div className="px-5 py-3 font-display text-xl tracking-wider"
                   style={{ background: 'var(--bg3)', borderBottom: '1px solid var(--border)', color: 'var(--text)' }}>
                   {team.label}
@@ -541,18 +567,42 @@ export default function AdminPage() {
                     </tbody>
                   </table>
                 </div>
-              </div>
+              </motion.div>
             ))}
 
             {/* SAVE */}
-            <button onClick={handleSave} disabled={saving}
-              className="w-full py-4 rounded-xl font-display text-2xl tracking-wider transition-all"
-              style={{
-                background: saved ? 'var(--green)' : 'var(--mm)',
-                color: 'white', cursor: saving ? 'not-allowed' : 'pointer', opacity: saving ? 0.7 : 1,
-              }}>
-              {saving ? 'SAVING...' : saved ? '✓ SAVED!' : 'SAVE SCORECARD'}
-            </button>
+            <AnimatePresence mode="wait">
+              <motion.button
+                key={saved ? 'saved' : saving ? 'saving' : 'idle'}
+                onClick={handleSave}
+                disabled={saving}
+                whileHover={!saving && !saved ? { scale: 1.005 } : {}}
+                whileTap={!saving && !saved ? { scale: 0.985 } : {}}
+                initial={{ opacity: 0, y: 8 }}
+                animate={saved
+                  ? { opacity: 1, y: 0, scale: 1 }
+                  : { opacity: 1, y: 0 }}
+                transition={saved
+                  ? { type: 'spring', stiffness: 320, damping: 18 }
+                  : { duration: 0.22, ease: [0.23, 1, 0.32, 1] }}
+                className="w-full py-4 rounded-xl font-display text-2xl tracking-wider relative overflow-hidden"
+                style={{
+                  background: saved
+                    ? 'linear-gradient(90deg, #4ADE80, #22c55e)'
+                    : 'linear-gradient(90deg, #c9a84c 0%, #f0d080 50%, #c9a84c 100%)',
+                  backgroundSize: '200% auto',
+                  animation: !saving && !saved ? 'shimmer 3.5s linear infinite' : undefined,
+                  color: '#0B1020',
+                  cursor: saving ? 'not-allowed' : 'pointer',
+                  opacity: saving ? 0.75 : 1,
+                  boxShadow: saved
+                    ? '0 0 30px rgba(74,222,128,0.5)'
+                    : '0 8px 28px rgba(201,168,76,0.35)',
+                }}
+              >
+                {saving ? 'SAVING...' : saved ? '✓ SAVED!' : 'SAVE SCORECARD'}
+              </motion.button>
+            </AnimatePresence>
           </>
         )}
       </main>

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Image from 'next/image'
+import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from 'framer-motion'
 import { supabase } from '@/lib/supabase'
 import { calculatePoints } from '@/lib/points'
 import { getPlayerImage } from '@/lib/playerImages'
@@ -25,6 +26,14 @@ type PlayerRow = {
 }
 
 const PODIUM_MEDALS = ['🥇', '🥈', '🥉']
+
+function CountUp({ value, className, style }: { value: number; className?: string; style?: React.CSSProperties }) {
+  const mv = useMotionValue(0)
+  const spring = useSpring(mv, { stiffness: 90, damping: 20, mass: 0.7 })
+  const rounded = useTransform(spring, latest => Math.round(latest).toString())
+  useEffect(() => { mv.set(value) }, [value, mv])
+  return <motion.span className={className} style={style}>{rounded}</motion.span>
+}
 
 function PlayerAvatar({ shortName, size = 40, color, dimColor, borderColor, fontSize = 18 }: {
   shortName: string; size?: number; color: string
@@ -62,7 +71,6 @@ export default function HomePage() {
   const [loading,        setLoading]        = useState(true)
   const [selectedPlayer, setSelectedPlayer] = useState<PlayerRow | null>(null)
   const [filter,         setFilter]         = useState<'all' | 'MM' | 'HB'>('all')
-  const [listVisible,    setListVisible]    = useState(false)
 
   useEffect(() => { fetchLeaderboard() }, [])
 
@@ -99,7 +107,6 @@ export default function HomePage() {
     }
     setPlayers(Array.from(playerMap.values()).sort((a, b) => b.total_points - a.total_points))
     setLoading(false)
-    setTimeout(() => setListVisible(true), 100)
   }
 
   const mmPlayers  = players.filter(p => p.team === 'MM')
@@ -112,9 +119,7 @@ export default function HomePage() {
   const showPodium = filter === 'all' && !loading && top3.length > 0
 
   return (
-    <div style={{ background: '#05080f', minHeight: '100vh', position: 'relative' }}>
-
-      {/* ── FULL ANIMATED BACKGROUND ────────────────────── */}
+    <div style={{ background: '#0B1020', minHeight: '100vh', position: 'relative' }}>
       <BackgroundCanvas />
       <HorseWatermark />
 
@@ -124,9 +129,23 @@ export default function HomePage() {
         <main className="max-w-5xl mx-auto px-4 py-12">
 
           {/* ── HERO ──────────────────────────────────────── */}
-          <div className="mb-12 fade-in">
+          <motion.div
+            className="mb-12"
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, ease: [0.23, 1, 0.32, 1] }}
+          >
             <div className="flex items-center gap-3 mb-4">
-              <span className="live-dot" />
+              <motion.span
+                className="live-dot"
+                animate={{ opacity: [1, 0.3, 1] }}
+                transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
+                style={{
+                  width: 8, height: 8, borderRadius: '50%',
+                  background: 'var(--green)', display: 'inline-block',
+                  boxShadow: '0 0 12px rgba(74,222,128,0.7)',
+                }}
+              />
               <span className="font-mono text-xs tracking-[5px] uppercase" style={{ color: 'var(--green)' }}>
                 Live Updates · Season 2026
               </span>
@@ -138,15 +157,20 @@ export default function HomePage() {
             }}>
               STANDINGS
             </h1>
-            <div style={{
-              width: 80, height: 3, marginTop: 12,
-              background: 'linear-gradient(90deg, var(--mm), transparent)',
-              borderRadius: 99,
-            }} />
+            <motion.div
+              initial={{ scaleX: 0, originX: 0 }}
+              animate={{ scaleX: 1 }}
+              transition={{ delay: 0.3, duration: 0.6, ease: [0.23, 1, 0.32, 1] }}
+              style={{
+                width: 80, height: 3, marginTop: 12,
+                background: 'linear-gradient(90deg, var(--mm), transparent)',
+                borderRadius: 99,
+              }}
+            />
             <p className="font-mono text-sm mt-4" style={{ color: 'var(--text3)' }}>
               Mavericks Cricket Club · T30 Internal Tournament · 8 Matches
             </p>
-          </div>
+          </motion.div>
 
           {/* ── TEAM BANNER ───────────────────────────────── */}
           <TeamBanner mmTotal={mmTotal} hbTotal={hbTotal} />
@@ -154,12 +178,17 @@ export default function HomePage() {
           {/* ── TOP 3 PODIUM ──────────────────────────────── */}
           {showPodium && (
             <div className="mb-10">
-              <div className="flex items-center gap-3 mb-5 fade-in-2">
+              <motion.div
+                className="flex items-center gap-3 mb-5"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.2 }}
+              >
                 <span className="font-mono text-xs tracking-[4px] uppercase" style={{ color: 'var(--text3)' }}>
                   Top Performers
                 </span>
                 <div style={{ flex: 1, height: 1, background: 'linear-gradient(90deg, var(--border), transparent)' }} />
-              </div>
+              </motion.div>
 
               <div className="grid grid-cols-3 gap-4">
                 {top3.map((player, i) => {
@@ -171,9 +200,15 @@ export default function HomePage() {
                   const isFirst = i === 0
 
                   return (
-                    <div key={player.id}
+                    <motion.div
+                      key={player.id}
                       onClick={() => setSelectedPlayer(player)}
-                      className={`card-hover cursor-pointer rounded-2xl overflow-hidden relative ${isFirst ? 'scale-in' : i === 1 ? 'fade-in-2' : 'fade-in-3'}`}
+                      initial={{ opacity: 0, y: 20, scale: 0.96 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      transition={{ delay: 0.15 + i * 0.08, type: 'spring', stiffness: 140, damping: 18 }}
+                      whileHover={{ y: -3, transition: { duration: 0.18, ease: [0.23, 1, 0.32, 1] } }}
+                      whileTap={{ scale: 0.98 }}
+                      className="cursor-pointer rounded-2xl overflow-hidden relative"
                       style={{
                         background: isFirst
                           ? 'linear-gradient(160deg, #1c1400 0%, #120e02 40%, rgba(11,18,33,0.95) 100%)'
@@ -184,9 +219,8 @@ export default function HomePage() {
                           : `0 4px 20px rgba(0,0,0,0.4)`,
                         marginTop: i === 2 ? 20 : 0,
                         backdropFilter: 'blur(12px)',
-                      }}>
-
-                      {/* Top shimmer line */}
+                      }}
+                    >
                       <div style={{
                         height: 2,
                         background: isFirst
@@ -197,11 +231,14 @@ export default function HomePage() {
                       }} />
 
                       <div className="p-5 text-center">
-                        <div className={`text-4xl mb-4 ${isFirst ? 'float' : ''}`}>
+                        <motion.div
+                          className="text-4xl mb-4"
+                          animate={isFirst ? { y: [0, -6, 0] } : {}}
+                          transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+                        >
                           {PODIUM_MEDALS[i]}
-                        </div>
+                        </motion.div>
 
-                        {/* Avatar */}
                         <div className="flex justify-center mb-3 relative">
                           <PlayerAvatar
                             shortName={player.short_name}
@@ -211,16 +248,22 @@ export default function HomePage() {
                           />
                           {isFirst && (
                             <>
-                              <div style={{
-                                position: 'absolute', inset: -3, borderRadius: 24,
-                                border: '1px solid rgba(201,168,76,0.3)',
-                                animation: 'pulse 3s ease infinite',
-                              }} />
-                              <div style={{
-                                position: 'absolute', inset: -8, borderRadius: 28,
-                                border: '1px solid rgba(201,168,76,0.1)',
-                                animation: 'pulse 3s ease 1s infinite',
-                              }} />
+                              <motion.div
+                                animate={{ opacity: [0.6, 1, 0.6], scale: [1, 1.05, 1] }}
+                                transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+                                style={{
+                                  position: 'absolute', inset: -3, borderRadius: 24,
+                                  border: '1px solid rgba(201,168,76,0.3)',
+                                }}
+                              />
+                              <motion.div
+                                animate={{ opacity: [0.3, 0.7, 0.3], scale: [1, 1.08, 1] }}
+                                transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
+                                style={{
+                                  position: 'absolute', inset: -8, borderRadius: 28,
+                                  border: '1px solid rgba(201,168,76,0.1)',
+                                }}
+                              />
                             </>
                           )}
                         </div>
@@ -232,16 +275,17 @@ export default function HomePage() {
                           {player.team === 'MM' ? 'Mighty Mavericks' : 'Hell Boys'}
                         </div>
 
-                        {/* Points */}
-                        <div className={`font-display leading-none ${isFirst ? 'gold-shimmer' : ''}`}
-                          style={isFirst ? { fontSize: 56 } : { fontSize: 56, color }}>
-                          {player.total_points}
-                        </div>
+                        <CountUp
+                          value={player.total_points}
+                          className="font-display leading-none block"
+                          style={isFirst
+                            ? { fontSize: 56, color: 'var(--mm)', textShadow: '0 0 24px rgba(201,168,76,0.5)' }
+                            : { fontSize: 56, color }}
+                        />
                         <div className="font-mono text-[10px] tracking-widest mt-1 mb-4" style={{ color: 'var(--text3)' }}>
                           TOURNAMENT POINTS
                         </div>
 
-                        {/* Stats */}
                         <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12 }}>
                           <div className="grid grid-cols-3 gap-2">
                             {[
@@ -257,7 +301,7 @@ export default function HomePage() {
                           </div>
                         </div>
                       </div>
-                    </div>
+                    </motion.div>
                   )
                 })}
               </div>
@@ -265,15 +309,30 @@ export default function HomePage() {
           )}
 
           {/* ── FILTER TABS ────────────────────────────────── */}
-          <div className="flex gap-2 mb-6 fade-in-3">
+          <motion.div
+            className="flex gap-2 mb-6"
+            initial="hidden"
+            animate="show"
+            variants={{
+              hidden: {},
+              show: { transition: { staggerChildren: 0.06, delayChildren: 0.3 } },
+            }}
+          >
             {(['all', 'MM', 'HB'] as const).map(f => {
               const active  = filter === f
-              const fColor  = f === 'MM' ? 'var(--mm)' : f === 'HB' ? 'var(--hb)' : 'var(--text)'
-              const fDim    = f === 'MM' ? 'var(--mm-dim)' : f === 'HB' ? 'var(--hb-dim)' : 'var(--bg3)'
-              const fBorder = f === 'MM' ? 'var(--mm-border)' : f === 'HB' ? 'var(--hb-border)' : 'var(--border2)'
+              const fColor  = f === 'MM' ? 'var(--mm)' : f === 'HB' ? 'var(--hb)' : 'var(--accent)'
+              const fDim    = f === 'MM' ? 'var(--mm-dim)' : f === 'HB' ? 'var(--hb-dim)' : 'var(--accent-dim)'
+              const fBorder = f === 'MM' ? 'var(--mm-border)' : f === 'HB' ? 'var(--hb-border)' : 'var(--accent-border)'
               return (
-                <button key={f} onClick={() => setFilter(f)}
-                  className="px-4 py-2 rounded-xl font-mono text-xs tracking-widest uppercase transition-all"
+                <motion.button
+                  key={f}
+                  onClick={() => setFilter(f)}
+                  variants={{
+                    hidden: { opacity: 0, y: 8 },
+                    show: { opacity: 1, y: 0, transition: { duration: 0.25, ease: [0.23, 1, 0.32, 1] } },
+                  }}
+                  whileTap={{ scale: 0.97 }}
+                  className="px-4 py-2 rounded-xl font-mono text-xs tracking-widest uppercase"
                   style={{
                     background: active ? fDim : 'rgba(11,18,33,0.6)',
                     border: `1px solid ${active ? fBorder : 'var(--border)'}`,
@@ -281,21 +340,27 @@ export default function HomePage() {
                     cursor: 'pointer',
                     backdropFilter: 'blur(8px)',
                     boxShadow: active ? `0 4px 20px ${fDim}` : 'none',
-                  }}>
+                    transition: 'background 200ms ease, border-color 200ms ease, color 200ms ease, box-shadow 200ms ease',
+                  }}
+                >
                   {f === 'all' ? '⚡ All Players' : f === 'MM' ? '🟡 Mighty Mavericks' : '🔵 Hell Boys'}
-                </button>
+                </motion.button>
               )
             })}
-          </div>
+          </motion.div>
 
           {/* ── LEADERBOARD ────────────────────────────────── */}
           {loading ? (
             <div className="text-center py-32">
-              <div style={{
-                width: 52, height: 52, borderRadius: '50%',
-                border: '2px solid var(--border2)', borderTop: '2px solid var(--mm)',
-                animation: 'rotateSlow 1s linear infinite', margin: '0 auto 20px',
-              }} />
+              <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+                style={{
+                  width: 52, height: 52, borderRadius: '50%',
+                  border: '2px solid var(--border2)', borderTop: '2px solid var(--mm)',
+                  margin: '0 auto 20px',
+                }}
+              />
               <div className="font-display text-3xl tracking-[6px]" style={{ color: 'var(--border2)' }}>
                 LOADING
               </div>
@@ -303,52 +368,70 @@ export default function HomePage() {
           ) : (
             <div>
               {filter === 'all' && players.length > 3 && (
-                <div className="flex items-center gap-3 mb-5 fade-in-4">
+                <motion.div
+                  className="flex items-center gap-3 mb-5"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.4 }}
+                >
                   <span className="font-mono text-xs tracking-[4px] uppercase" style={{ color: 'var(--text3)' }}>
                     Full Rankings
                   </span>
                   <div style={{ flex: 1, height: 1, background: 'linear-gradient(90deg, var(--border), transparent)' }} />
-                </div>
+                </motion.div>
               )}
 
-              <div className="flex flex-col gap-2">
-                {filtered.map((player, idx) => {
+              <motion.div
+                className="flex flex-col gap-2"
+                initial="hidden"
+                animate="show"
+                variants={{
+                  hidden: {},
+                  show: { transition: { staggerChildren: 0.05, delayChildren: 0.35 } },
+                }}
+              >
+                {filtered.map((player) => {
                   const rank    = players.indexOf(player) + 1
                   const isMM    = player.team === 'MM'
                   const color   = isMM ? 'var(--mm)' : 'var(--hb)'
                   const dimC    = isMM ? 'var(--mm-dim)' : 'var(--hb-dim)'
                   const borderC = isMM ? 'var(--mm-border)' : 'var(--hb-border)'
-                  const rowClass = listVisible ? `row-${Math.min(idx, 19)}` : ''
+                  const hoverShadow = isMM
+                    ? '0 12px 36px rgba(201,168,76,0.18), 0 0 0 1px rgba(201,168,76,0.25)'
+                    : '0 12px 36px rgba(56,189,248,0.18), 0 0 0 1px rgba(56,189,248,0.25)'
 
                   return (
-                    <div key={player.id}
+                    <motion.div
+                      key={player.id}
                       onClick={() => setSelectedPlayer(player)}
-                      className={`card-hover cursor-pointer rounded-xl flex items-center gap-4 px-5 py-4 ${rowClass}`}
+                      variants={{
+                        hidden: { opacity: 0, y: 10 },
+                        show: { opacity: 1, y: 0, transition: { duration: 0.3, ease: [0.23, 1, 0.32, 1] } },
+                      }}
+                      whileHover={{ y: -2, boxShadow: hoverShadow, transition: { duration: 0.18 } }}
+                      whileTap={{ scale: 0.995 }}
+                      className="cursor-pointer rounded-xl flex items-center gap-4 px-5 py-4"
                       style={{
                         background: 'rgba(11,18,33,0.75)',
                         border: '1px solid var(--border)',
                         borderLeft: `3px solid ${color}`,
                         backdropFilter: 'blur(12px)',
                         position: 'relative', overflow: 'hidden',
-                      }}>
-
-                      {/* Subtle team glow */}
+                      }}
+                    >
                       <div style={{
                         position: 'absolute', inset: 0, pointerEvents: 'none',
                         background: `linear-gradient(90deg, ${isMM ? '#c9a84c06' : '#3b82f606'} 0%, transparent 40%)`,
                       }} />
 
-                      {/* Rank */}
                       <div className="w-8 text-center flex-shrink-0 font-display text-xl"
                         style={{ color: 'var(--text3)' }}>
                         {rank}
                       </div>
 
-                      {/* Photo */}
                       <PlayerAvatar shortName={player.short_name} size={42}
                         color={color} dimColor={dimC} borderColor={borderC} />
 
-                      {/* Name */}
                       <div className="flex-1 min-w-0">
                         <div className="font-semibold text-sm" style={{ color: 'var(--text)' }}>
                           {player.short_name}
@@ -363,7 +446,6 @@ export default function HomePage() {
                         </div>
                       </div>
 
-                      {/* Stats */}
                       <div className="hidden sm:flex gap-6 text-right">
                         <div>
                           <div className="font-display text-xl" style={{ color: 'var(--text2)' }}>{player.total_runs}</div>
@@ -375,24 +457,32 @@ export default function HomePage() {
                         </div>
                       </div>
 
-                      {/* Points */}
                       <div className="text-right flex-shrink-0 ml-2">
-                        <div className="font-display text-4xl" style={{
-                          color,
-                          textShadow: `0 0 20px ${isMM ? 'rgba(201,168,76,0.4)' : 'rgba(59,130,246,0.4)'}`,
-                        }}>
-                          {player.total_points}
-                        </div>
+                        <CountUp
+                          value={player.total_points}
+                          className="font-display text-4xl block"
+                          style={{
+                            color,
+                            textShadow: `0 0 20px ${isMM ? 'rgba(201,168,76,0.4)' : 'rgba(59,130,246,0.4)'}`,
+                          }}
+                        />
                         <div className="font-mono text-[9px] tracking-widest" style={{ color: 'var(--text3)' }}>PTS</div>
                       </div>
-                    </div>
+                    </motion.div>
                   )
                 })}
 
                 {filtered.length === 0 && (
                   <div className="text-center py-24 rounded-2xl"
                     style={{ background: 'rgba(11,18,33,0.8)', border: '1px solid var(--border)', backdropFilter: 'blur(12px)' }}>
-                    <div className="text-6xl mb-4 float" style={{ display: 'inline-block' }}>🏏</div>
+                    <motion.div
+                      className="text-6xl mb-4"
+                      animate={{ y: [0, -8, 0] }}
+                      transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+                      style={{ display: 'inline-block' }}
+                    >
+                      🏏
+                    </motion.div>
                     <div className="font-display text-3xl tracking-widest mb-2" style={{ color: 'var(--border2)' }}>
                       SEASON STARTING SOON
                     </div>
@@ -401,7 +491,7 @@ export default function HomePage() {
                     </p>
                   </div>
                 )}
-              </div>
+              </motion.div>
             </div>
           )}
 
@@ -422,9 +512,11 @@ export default function HomePage() {
         </main>
       </div>
 
-      {selectedPlayer && (
-        <PlayerModal player={selectedPlayer} onClose={() => setSelectedPlayer(null)} />
-      )}
+      <AnimatePresence>
+        {selectedPlayer && (
+          <PlayerModal player={selectedPlayer} onClose={() => setSelectedPlayer(null)} />
+        )}
+      </AnimatePresence>
     </div>
   )
 }

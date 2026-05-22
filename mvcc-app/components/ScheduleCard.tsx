@@ -1,5 +1,6 @@
 'use client'
 import { useState } from 'react'
+import { motion } from 'framer-motion'
 import { Match } from '@/lib/supabase'
 import ScorecardModal from '@/components/ScorecardModal'
 
@@ -26,34 +27,40 @@ export default function ScheduleCard({ match }: { match: Match }) {
 
   return (
     <>
-      <div
+      <motion.div
         onClick={() => match.is_played && setShowScorecard(true)}
-        className="rounded-xl p-4 transition-all card-hover"
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
+        whileHover={match.is_played
+          ? { y: -2, borderColor: 'rgba(255,255,255,0.25)', transition: { duration: 0.18 } }
+          : { y: -1, transition: { duration: 0.18 } }}
+        whileTap={match.is_played ? { scale: 0.995 } : {}}
+        className="rounded-xl p-4"
         style={{
-          background: 'var(--bg2)',
-          border: '1px solid var(--border)',
-          borderLeft: `3px solid ${match.is_played ? statusColor : isToday ? 'var(--gold)' : 'var(--border)'}`,
+          background: 'rgba(255,255,255,0.05)',
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
+          border: '1px solid rgba(255,255,255,0.10)',
+          borderLeft: `3px solid ${match.is_played ? statusColor : isToday ? 'var(--gold)' : 'rgba(255,255,255,0.15)'}`,
           cursor: match.is_played ? 'pointer' : 'default',
           position: 'relative',
           overflow: 'hidden',
         }}
       >
-        {/* Subtle glow for completed */}
         {match.is_played && (
           <div style={{
             position: 'absolute', inset: 0, pointerEvents: 'none',
-            background: `linear-gradient(90deg, ${statusColor}08, transparent 40%)`,
+            background: `linear-gradient(90deg, ${statusColor}10, transparent 40%)`,
           }} />
         )}
 
         <div className="relative flex items-center gap-4">
-          {/* Match number */}
           <div className="font-display text-4xl w-12 text-center flex-shrink-0"
             style={{ color: match.is_played ? statusColor : 'var(--border2)', opacity: match.is_played ? 1 : 0.6 }}>
             {match.match_number}
           </div>
 
-          {/* Info */}
           <div className="flex-1 min-w-0">
             <div className="font-medium text-sm mb-1" style={{ color: 'var(--text)' }}>
               MVCC <span style={{ color: 'var(--text3)' }}>vs</span> {match.opponent}
@@ -70,32 +77,43 @@ export default function ScheduleCard({ match }: { match: Match }) {
               </span>
             </div>
 
-            {/* Score row */}
             {match.is_played && match.mvcc_score && (
-              <div className="mt-2 font-mono text-sm flex items-center gap-2 flex-wrap"
-                style={{ color: 'var(--text2)' }}>
+              <motion.div
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.15, duration: 0.3, ease: [0.23, 1, 0.32, 1] }}
+                className="mt-2 font-mono text-sm flex items-center gap-2 flex-wrap"
+                style={{ color: 'var(--text2)' }}
+              >
                 <span style={{ color: 'var(--mm)' }}>MVCC {match.mvcc_score}</span>
                 <span style={{ color: 'var(--text3)' }}>·</span>
                 <span style={{ color: 'var(--hb)' }}>
                   {match.opponent_short || match.opponent.split(' ')[0]} {match.opponent_score}
                 </span>
-              </div>
+              </motion.div>
             )}
           </div>
 
-          {/* Right side */}
           <div className="flex flex-col items-end gap-2 flex-shrink-0">
-            {/* Status badge */}
-            <div className="font-mono text-xs tracking-widest px-3 py-1.5 rounded-full"
+            <motion.div
+              className="font-mono text-xs tracking-widest px-3 py-1.5 rounded-full"
+              animate={isToday && !match.is_played ? {
+                boxShadow: [
+                  '0 0 0 0 rgba(245,158,11,0)',
+                  '0 0 0 6px rgba(245,158,11,0.18)',
+                  '0 0 0 0 rgba(245,158,11,0)',
+                ],
+              } : {}}
+              transition={isToday ? { duration: 1.8, repeat: Infinity, ease: 'easeInOut' } : {}}
               style={{
                 color: statusColor,
                 background: `${statusColor}15`,
                 border: `1px solid ${statusColor}30`,
-              }}>
+              }}
+            >
               {statusLabel}
-            </div>
+            </motion.div>
 
-            {/* Scorecard button for completed */}
             {match.is_played && (
               <div className="font-mono text-[9px] tracking-widest uppercase flex items-center gap-1"
                 style={{ color: 'var(--text3)' }}>
@@ -108,7 +126,7 @@ export default function ScheduleCard({ match }: { match: Match }) {
             )}
           </div>
         </div>
-      </div>
+      </motion.div>
 
       {showScorecard && (
         <ScorecardModal match={match} onClose={() => setShowScorecard(false)} />

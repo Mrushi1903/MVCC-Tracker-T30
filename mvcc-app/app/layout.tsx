@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className="grain">
+      <body className="grain grid-texture">
         {children}
         <MobileNav />
       </body>

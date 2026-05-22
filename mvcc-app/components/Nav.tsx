@@ -1,6 +1,13 @@
 'use client'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { motion } from 'framer-motion'
+
+const LINKS = [
+  { href: '/', label: 'Standings' },
+  { href: '/schedule', label: 'Schedule' },
+  { href: '/rules', label: 'Rules' },
+]
 
 export default function Nav() {
   const path = usePathname()
@@ -18,7 +25,6 @@ export default function Nav() {
         boxShadow: '0 4px 24px rgba(0,0,0,0.3)',
       }}
     >
-      {/* Top accent line */}
       <div style={{
         height: '2px',
         background: 'linear-gradient(90deg, transparent, #00E5FF, #c9a84c, transparent)',
@@ -26,26 +32,22 @@ export default function Nav() {
       }} />
 
       <div className="max-w-5xl mx-auto px-4 flex items-center justify-between h-14">
-        {/* Logo + name */}
         <Link href="/" className="flex items-center gap-2.5 group">
-          <div
-            className="w-8 h-8 rounded-lg overflow-hidden flex-shrink-0"
+          <motion.div
+            animate={{ scale: [1, 1.04, 1] }}
+            transition={{ duration: 4.5, repeat: Infinity, ease: 'easeInOut' }}
+            className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0"
             style={{
-              border: '1px solid rgba(201,168,76,0.4)',
-              boxShadow: '0 0 12px rgba(201,168,76,0.15)',
+              border: '1px solid rgba(201,168,76,0.5)',
+              boxShadow: '0 0 12px rgba(201,168,76,0.25)',
             }}
           >
             <img src="/mavericks-logo.jpeg" alt="MVCC" className="w-full h-full object-cover" />
-          </div>
+          </motion.div>
           <div>
             <span
               className="font-display text-lg tracking-wider"
-              style={{
-                background: 'linear-gradient(135deg, #c9a84c, #f0d080)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-                backgroundClip: 'text',
-              }}
+              style={{ color: 'var(--mm)' }}
             >
               MAVERICKS
             </span>
@@ -55,27 +57,35 @@ export default function Nav() {
           </div>
         </Link>
 
-        {/* Nav links */}
-        <div className="flex items-center gap-1">
-          {[
-            { href: '/', label: 'Standings' },
-            { href: '/schedule', label: 'Schedule' },
-            { href: '/rules', label: 'Rules' },
-          ].map(({ href, label }) => {
+        <div className="flex items-center gap-1 relative">
+          {LINKS.map(({ href, label }) => {
             const isActive = path === href
             return (
               <Link
                 key={href}
                 href={href}
-                className="px-3 py-1.5 rounded-lg text-sm font-medium transition-all"
+                className="relative px-3 py-1.5 rounded-lg text-sm font-medium"
                 style={{
                   color: isActive ? 'var(--accent)' : 'var(--text2)',
-                  background: isActive ? 'rgba(0,229,255,0.08)' : 'transparent',
-                  border: `1px solid ${isActive ? 'rgba(0,229,255,0.2)' : 'transparent'}`,
-                  boxShadow: isActive ? '0 0 12px rgba(0,229,255,0.1)' : 'none',
+                  transition: 'color 200ms ease',
                 }}
               >
-                {label}
+                {isActive && (
+                  <motion.span
+                    layoutId="nav-active"
+                    transition={{ type: 'spring', stiffness: 380, damping: 32 }}
+                    style={{
+                      position: 'absolute',
+                      inset: 0,
+                      borderRadius: 8,
+                      background: 'rgba(0,229,255,0.08)',
+                      border: '1px solid rgba(0,229,255,0.25)',
+                      boxShadow: '0 0 14px rgba(0,229,255,0.18)',
+                      zIndex: -1,
+                    }}
+                  />
+                )}
+                <span style={{ position: 'relative' }}>{label}</span>
               </Link>
             )
           })}
