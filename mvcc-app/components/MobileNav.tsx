@@ -8,7 +8,7 @@ import { supabase } from '@/lib/supabase'
 const ADMIN_EMAILS = [
   'mrushireddy2232@gmail.com',  // Rushi
   'viswakasu@gmail.com',         // Viswa — Captain
-  'rohitmaddipati23@gmail.com',  // Rohith — VC
+  'rohitmaddipati@gmail.com',    // Rohith — VC
 ]
 
 export default function MobileNav() {
