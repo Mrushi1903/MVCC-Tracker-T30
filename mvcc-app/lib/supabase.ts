@@ -12,6 +12,7 @@ export type Player = {
   team: 'MM' | 'HB'
   jersey_number: number
   cc_player_id: string
+  is_external: boolean
 }
 
 export type Match = {
@@ -27,6 +28,7 @@ export type Match = {
   opponent_score: string | null
   potm_player_id: number | null
   is_played: boolean
+  playing_12: number[] | null
 }
 
 export type Performance = {
@@ -50,6 +52,7 @@ export type Performance = {
   bowling_points: number
   fielding_points: number
   bonus_points: number
+  availability_points: number
   total_points: number
   is_potm: boolean
 }
@@ -73,4 +76,16 @@ export type OpponentBowling = {
   maidens: number
   runs_conceded: number
   wickets: number
+}
+
+export type AvailabilityStatus = 'available' | 'not_available' | 'tentative'
+
+export type Availability = {
+  id: number
+  tournament_id: number | null
+  match_id: number
+  player_id: number
+  status: AvailabilityStatus
+  note: string | null
+  submitted_at: string
 }

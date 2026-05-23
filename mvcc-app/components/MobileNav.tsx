@@ -71,6 +71,19 @@ export default function MobileNav() {
       ),
     },
     {
+      href: '/availability',
+      label: 'Avail',
+      icon: (active: boolean) => (
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+          <path
+            d="M9 12l2 2 4-4M12 22a10 10 0 1 1 0-20 10 10 0 0 1 0 20Z"
+            stroke={active ? 'var(--mm)' : 'var(--text3)'}
+            strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"
+          />
+        </svg>
+      ),
+    },
+    {
       href: '/rules',
       label: 'Rules',
       icon: (active: boolean) => (

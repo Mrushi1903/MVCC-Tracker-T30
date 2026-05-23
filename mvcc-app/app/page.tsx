@@ -18,6 +18,7 @@ type PlayerRow = {
   short_name: string
   team: 'MM' | 'HB'
   jersey_number: number
+  is_external: boolean
   total_points: number
   total_runs: number
   total_wickets: number
@@ -84,6 +85,7 @@ export default function HomePage() {
       playerMap.set(pl.id, {
         id: pl.id, name: pl.name, short_name: pl.short_name,
         team: pl.team, jersey_number: pl.jersey_number,
+        is_external: pl.is_external ?? false,
         total_points: 0, total_runs: 0, total_wickets: 0, total_catches: 0, matches_played: 0,
       })
     }
@@ -97,6 +99,7 @@ export default function HomePage() {
           wickets: perf.wickets, catches: perf.catches,
           runout_fielder: perf.runout_fielder, runout_helper: perf.runout_helper,
           stumpings: perf.stumpings, is_potm: perf.is_potm,
+          availability_points: perf.availability_points ?? 0,
         })
         p.total_points  += pts.total_points
         p.total_runs    += perf.runs
@@ -111,8 +114,9 @@ export default function HomePage() {
 
   const mmPlayers  = players.filter(p => p.team === 'MM')
   const hbPlayers  = players.filter(p => p.team === 'HB')
-  const mmTotal    = mmPlayers.reduce((s, p) => s + p.total_points, 0)
-  const hbTotal    = hbPlayers.reduce((s, p) => s + p.total_points, 0)
+  // External player points DO NOT count toward team totals.
+  const mmTotal    = mmPlayers.filter(p => !p.is_external).reduce((s, p) => s + p.total_points, 0)
+  const hbTotal    = hbPlayers.filter(p => !p.is_external).reduce((s, p) => s + p.total_points, 0)
   const top3       = players.slice(0, 3)
   const restAll    = players.slice(3)
   const filtered   = filter === 'all' ? restAll : players.filter(p => p.team === filter)
@@ -433,8 +437,24 @@ export default function HomePage() {
                         color={color} dimColor={dimC} borderColor={borderC} />
 
                       <div className="flex-1 min-w-0">
-                        <div className="font-semibold text-sm" style={{ color: 'var(--text)' }}>
+                        <div className="font-semibold text-sm flex items-center gap-1.5" style={{ color: 'var(--text)' }}>
                           {player.short_name}
+                          {player.is_external && (
+                            <span
+                              className="font-mono"
+                              style={{
+                                fontSize: 9,
+                                letterSpacing: '0.12em',
+                                padding: '1px 5px',
+                                borderRadius: 4,
+                                background: 'rgba(245,158,11,0.12)',
+                                color: 'var(--gold)',
+                                border: '1px solid rgba(245,158,11,0.3)',
+                              }}
+                            >
+                              EXT
+                            </span>
+                          )}
                         </div>
                         <div className="font-mono text-xs mt-0.5 flex items-center gap-1.5"
                           style={{ color: 'var(--text3)' }}>

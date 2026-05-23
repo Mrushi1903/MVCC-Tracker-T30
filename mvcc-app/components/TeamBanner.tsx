@@ -35,10 +35,11 @@ export default function TeamBanner({ mmTotal, hbTotal }: Props) {
   const hbLeading = hbTotal > mmTotal
   const tied = mmTotal === hbTotal
 
-  const mmColor = mmLeading ? '#F59E0B' : tied ? 'var(--mm)' : '#64748b'
-  const hbColor = hbLeading ? '#F59E0B' : tied ? 'var(--hb)' : '#64748b'
-  const mmTextGlow = mmLeading ? '0 0 30px rgba(245,158,11,0.4)' : 'none'
-  const hbTextGlow = hbLeading ? '0 0 30px rgba(245,158,11,0.4)' : 'none'
+  // Leading team → bright gold with glow. Trailing → own team color at 70% opacity.
+  const mmColor = mmLeading ? '#F59E0B' : tied ? 'var(--mm)' : 'rgba(201, 168, 76, 0.7)'
+  const hbColor = hbLeading ? '#F59E0B' : tied ? 'var(--hb)' : 'rgba(56, 189, 248, 0.7)'
+  const mmTextGlow = mmLeading ? '0 0 30px rgba(245,158,11,0.5)' : 'none'
+  const hbTextGlow = hbLeading ? '0 0 30px rgba(245,158,11,0.5)' : 'none'
 
   const leadDiff = Math.abs(mmTotal - hbTotal)
 
@@ -77,7 +78,7 @@ export default function TeamBanner({ mmTotal, hbTotal }: Props) {
                 transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
                 style={{
                   width: 6, height: 6, borderRadius: '50%',
-                  background: mmLeading ? '#F59E0B' : '#64748b',
+                  background: mmLeading ? '#F59E0B' : 'rgba(201, 168, 76, 0.7)',
                   display: 'inline-block',
                 }}
               />
@@ -139,7 +140,7 @@ export default function TeamBanner({ mmTotal, hbTotal }: Props) {
                 transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
                 style={{
                   width: 6, height: 6, borderRadius: '50%',
-                  background: hbLeading ? '#F59E0B' : '#64748b',
+                  background: hbLeading ? '#F59E0B' : 'rgba(56, 189, 248, 0.7)',
                   display: 'inline-block',
                 }}
               />
@@ -171,7 +172,7 @@ export default function TeamBanner({ mmTotal, hbTotal }: Props) {
               style={{
                 background: mmLeading
                   ? 'linear-gradient(90deg, #c9a84c, #F59E0B)'
-                  : 'linear-gradient(90deg, #64748b, #475569)',
+                  : 'linear-gradient(90deg, rgba(201,168,76,0.55), rgba(201,168,76,0.7))',
                 borderRadius: '4px 0 0 4px',
               }}
             />
@@ -183,7 +184,7 @@ export default function TeamBanner({ mmTotal, hbTotal }: Props) {
               style={{
                 background: hbLeading
                   ? 'linear-gradient(90deg, #F59E0B, #c9a84c)'
-                  : 'linear-gradient(90deg, #475569, #64748b)',
+                  : 'linear-gradient(90deg, rgba(56,189,248,0.55), rgba(56,189,248,0.7))',
                 borderRadius: '0 4px 4px 0',
               }}
             />

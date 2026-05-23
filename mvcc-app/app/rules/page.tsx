@@ -7,11 +7,15 @@ const BATTING_RULES = [
   { action: '30+ Runs (Bonus)',   pts: '+10',  note: 'Milestone bonus' },
   { action: '50+ Runs (Bonus)',   pts: '+20',  note: 'Milestone bonus' },
   { action: '100+ Runs (Bonus)',  pts: '+40',  note: 'Milestone bonus' },
+  { action: 'Strike Rate Bonus',  pts: '+5·SR/135',  note: '25+ runs AND SR ≥ 135 (rounded)' },
 ]
 
 const BOWLING_RULES = [
-  { action: 'Each Wicket Taken',  pts: '+20',  note: 'Min. 1 complete over required' },
-  { action: 'Economy < 4.0',      pts: '+10',  note: 'Min. 1 over + at least 1 wicket' },
+  { action: 'Each Wicket Taken',           pts: '+20',         note: 'Min. 1 complete over required' },
+  { action: 'Economy < 4.0',               pts: '+10',         note: 'Min. 1 over + at least 1 wicket' },
+  { action: 'Tight Spell (0 Wickets)',     pts: '+(6−Econ)·5', note: '0 wickets + ≥ 2 overs + econ < 6 (rounded)' },
+  { action: '3-Wicket Haul',               pts: '+20',         note: 'Min. 1 complete over' },
+  { action: '5-Wicket Haul',               pts: '+40',         note: 'Replaces 3-wkt bonus' },
 ]
 
 const FIELDING_RULES = [
@@ -24,6 +28,7 @@ const FIELDING_RULES = [
 const BONUS_RULES = [
   { action: 'Player of the Match', pts: '+30', note: 'Manually awarded by admin' },
   { action: 'Season MVP',          pts: '+50', note: 'End of season award' },
+  { action: 'Available but Benched', pts: '+10', note: 'Marked available, not picked in Playing 12' },
 ]
 
 function RuleTable({
@@ -149,7 +154,12 @@ export default function RulesPage() {
             {[
               'Bowler must complete a minimum of 1 full over for bowling points to count.',
               'Batting milestones are tiered — if you score 50+ runs, you only get the +20 bonus (not +10 as well).',
+              'Strike-rate bonus is added on top of milestone bonus when you cross both thresholds (25+ runs and SR ≥ 135).',
               'Economy bonus requires minimum 1 complete over AND at least 1 wicket taken.',
+              'Tight-spell bonus (0 wickets) requires minimum 2 overs and economy under 6.',
+              '5-wicket haul replaces the 3-wicket bonus — they do not stack.',
+              'Availability bonus (+10) applies only if you submitted "Available" before the match and the captain did not pick you in the Playing 12.',
+              'External players (marked EXT) have their stats tracked but their points do not count toward team totals.',
               'POTM is manually assigned by the admin after each match — never auto-assigned.',
               'MVP award is given at end of season by team vote.',
               'Points update live as soon as the admin saves the scorecard.',

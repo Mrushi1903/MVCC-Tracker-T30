@@ -17,6 +17,7 @@ type Player = {
   total_wickets: number
   total_catches: number
   matches_played: number
+  is_external?: boolean
 }
 
 type MatchPerf = Performance & { match: Match }
@@ -60,8 +61,13 @@ export default function PlayerModal({ player, onClose }: { player: Player; onClo
 
   return (
     <motion.div
-      className="fixed inset-0 z-50 flex items-end md:items-center justify-center p-0 md:p-4"
-      style={{ background: 'rgba(5,8,15,0.65)', backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)' }}
+      className="fixed inset-0 flex items-end md:items-center justify-center p-0 md:p-4"
+      style={{
+        zIndex: 200, // above mobile bottom nav (z=100)
+        background: 'rgba(5,8,15,0.65)',
+        backdropFilter: 'blur(4px)',
+        WebkitBackdropFilter: 'blur(4px)',
+      }}
       onClick={e => { if (e.target === e.currentTarget) onClose() }}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
@@ -69,28 +75,43 @@ export default function PlayerModal({ player, onClose }: { player: Player; onClo
       transition={{ duration: 0.2 }}
     >
       <motion.div
-        className="w-full md:max-w-2xl rounded-t-2xl md:rounded-2xl overflow-hidden modal-panel"
+        className="w-full md:max-w-2xl rounded-t-2xl md:rounded-2xl overflow-hidden modal-panel relative"
         initial={{ opacity: 0, scale: 0.96 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0, scale: 0.97, transition: { duration: 0.18, ease: [0.23, 1, 0.32, 1] } }}
         transition={{ type: 'spring', stiffness: 280, damping: 26, mass: 0.8 }}
         style={{
-          background: 'rgba(15, 21, 40, 0.92)',
+          background: 'rgba(15, 21, 40, 0.95)',
           backdropFilter: 'blur(20px)',
           WebkitBackdropFilter: 'blur(20px)',
           border: '1px solid rgba(255,255,255,0.10)',
-          maxHeight: '92vh',
-          overflowY: 'auto',
           boxShadow: `0 24px 80px rgba(0,0,0,0.7), 0 0 0 1px ${borderColor}`,
+          // Mobile: clear the bottom nav (~80px). Desktop: cap at 88vh.
+          maxHeight: 'min(88dvh, calc(100dvh - 96px))',
+          display: 'flex',
+          flexDirection: 'column',
         }}
       >
+        {/* Top accent line — sits inside the panel */}
         <div style={{
           height: 3,
           background: `linear-gradient(90deg, transparent, ${color}, transparent)`,
+          flexShrink: 0,
         }} />
 
-        {/* ── HEADER ─────────────────────────────────────── */}
-        <div className="p-6 pb-4 relative" style={{ background: 'rgba(20, 28, 53, 0.6)', borderBottom: '1px solid var(--border)' }}>
+        {/* ── STICKY HEADER ─────────────────────────────── */}
+        <div
+          className="p-6 pb-4 relative"
+          style={{
+            background: 'rgba(20, 28, 53, 0.92)',
+            borderBottom: '1px solid var(--border)',
+            backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
+            flexShrink: 0,
+            position: 'relative',
+            zIndex: 2,
+          }}
+        >
           <div style={{
             position: 'absolute', inset: 0, pointerEvents: 'none',
             background: `radial-gradient(ellipse 60% 80% at ${isMM ? '0%' : '100%'} 50%, ${glowColor}, transparent)`,
@@ -131,8 +152,24 @@ export default function PlayerModal({ player, onClose }: { player: Player; onClo
               </motion.div>
 
               <div>
-                <div className="font-display text-3xl leading-none" style={{ color: 'var(--text)' }}>
+                <div className="font-display text-3xl leading-none flex items-center gap-2" style={{ color: 'var(--text)' }}>
                   {player.short_name.toUpperCase()}
+                  {player.is_external && (
+                    <span
+                      className="font-mono"
+                      style={{
+                        fontSize: 10,
+                        letterSpacing: '0.15em',
+                        padding: '2px 6px',
+                        borderRadius: 6,
+                        background: 'rgba(245,158,11,0.12)',
+                        color: 'var(--gold)',
+                        border: '1px solid rgba(245,158,11,0.3)',
+                      }}
+                    >
+                      EXT
+                    </span>
+                  )}
                 </div>
                 <div className="text-sm mt-1" style={{ color: 'var(--text2)' }}>
                   {player.name}
@@ -143,6 +180,11 @@ export default function PlayerModal({ player, onClose }: { player: Player; onClo
                   {player.team === 'MM' ? 'MIGHTY MAVERICKS' : 'HELL BOYS'}
                   {player.jersey_number > 0 && ` · #${player.jersey_number}`}
                 </div>
+                {player.is_external && (
+                  <div className="font-mono text-[10px] mt-1.5" style={{ color: 'var(--gold)' }}>
+                    External player — points don&apos;t count toward team total
+                  </div>
+                )}
               </div>
             </div>
 
@@ -167,10 +209,14 @@ export default function PlayerModal({ player, onClose }: { player: Player; onClo
           </div>
         </div>
 
-        {/* ── STATS GRID ──────────────────────────────────── */}
+        {/* ── STATS GRID (still in sticky region) ─────── */}
         <motion.div
           className="grid grid-cols-5 gap-0"
-          style={{ borderBottom: '1px solid var(--border)' }}
+          style={{
+            borderBottom: '1px solid var(--border)',
+            flexShrink: 0,
+            background: 'rgba(20, 28, 53, 0.6)',
+          }}
           initial="hidden"
           animate="show"
           variants={{ hidden: {}, show: { transition: { staggerChildren: 0.05, delayChildren: 0.15 } } }}
@@ -197,8 +243,17 @@ export default function PlayerModal({ player, onClose }: { player: Player; onClo
           ))}
         </motion.div>
 
-        {/* ── MATCH BREAKDOWN ─────────────────────────────── */}
-        <div className="p-5">
+        {/* ── SCROLLABLE MATCH BREAKDOWN ────────────── */}
+        <div
+          className="p-5 relative"
+          style={{
+            flex: 1,
+            minHeight: 0,
+            overflowY: 'auto',
+            WebkitOverflowScrolling: 'touch',
+            overscrollBehavior: 'contain',
+          }}
+        >
           <div className="font-mono text-xs tracking-[3px] uppercase mb-3" style={{ color: 'var(--text3)' }}>
             Match Breakdown
           </div>
@@ -224,7 +279,7 @@ export default function PlayerModal({ player, onClose }: { player: Player; onClo
             </div>
           ) : (
             <motion.div
-              className="flex flex-col gap-3"
+              className="flex flex-col gap-3 pb-2"
               initial="hidden"
               animate="show"
               variants={{ hidden: {}, show: { transition: { staggerChildren: 0.06, delayChildren: 0.2 } } }}
@@ -276,14 +331,30 @@ export default function PlayerModal({ player, onClose }: { player: Player; onClo
                     {perf.runout_fielder > 0 && <Chip label={`${perf.runout_fielder} RO`} sub="+10pts" color="var(--gold)" />}
                     {perf.stumpings > 0 && <Chip label={`${perf.stumpings} stump`} sub={`+${perf.stumpings * 10}pts`} color="var(--gold)" />}
                     {perf.is_potm && <Chip label="🏅 POTM" sub="+30pts" color="var(--mm)" />}
-                    {perf.bonus_points > (perf.is_potm ? 30 : 0) && (
-                      <Chip label="⭐ BONUS" sub={`+${perf.bonus_points}pts`} color="var(--gold)" />
+                    {perf.availability_points > 0 && <Chip label="✅ AVAIL" sub={`+${perf.availability_points}pts`} color="var(--green)" />}
+                    {perf.bonus_points > ((perf.is_potm ? 30 : 0) + (perf.availability_points || 0)) && (
+                      <Chip label="⭐ BONUS" sub={`+${perf.bonus_points - (perf.is_potm ? 30 : 0) - (perf.availability_points || 0)}pts`} color="var(--gold)" />
                     )}
                   </div>
                 </motion.div>
               ))}
             </motion.div>
           )}
+
+          {/* Fade hint at bottom showing scroll continues */}
+          <div
+            aria-hidden
+            style={{
+              position: 'sticky',
+              bottom: -20,
+              left: 0,
+              right: 0,
+              height: 32,
+              marginTop: -32,
+              pointerEvents: 'none',
+              background: 'linear-gradient(180deg, transparent, rgba(15,21,40,0.95))',
+            }}
+          />
         </div>
       </motion.div>
     </motion.div>
