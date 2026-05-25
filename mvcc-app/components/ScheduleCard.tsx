@@ -1,17 +1,37 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { Match } from '@/lib/supabase'
+import { Match, supabase } from '@/lib/supabase'
+import { getPlayerImage } from '@/lib/playerImages'
 import ScorecardModal from '@/components/ScorecardModal'
+
+type PotmInfo = { short_name: string }
 
 export default function ScheduleCard({ match }: { match: Match }) {
   const [showScorecard, setShowScorecard] = useState(false)
+  const [potm, setPotm] = useState<PotmInfo | null>(null)
 
   const [year, month, day] = match.date.split('-').map(Number)
   const date      = new Date(year, month - 1, day)
   const today     = new Date(); today.setHours(0,0,0,0)
   const matchDate = new Date(year, month - 1, day)
   const isToday   = matchDate.getTime() === today.getTime()
+  const daysUntil = Math.round((matchDate.getTime() - today.getTime()) / 86400000)
+  const isFuture  = !match.is_played && daysUntil > 0
+
+  useEffect(() => {
+    if (!match.is_played || !match.potm_player_id) { setPotm(null); return }
+    let cancelled = false
+    supabase
+      .from('players')
+      .select('short_name')
+      .eq('id', match.potm_player_id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!cancelled) setPotm((data as PotmInfo | null) ?? null)
+      })
+    return () => { cancelled = true }
+  }, [match.is_played, match.potm_player_id])
 
   const statusColor = match.is_played
     ? match.result === 'won'  ? 'var(--green)'
@@ -91,6 +111,36 @@ export default function ScheduleCard({ match }: { match: Match }) {
                   {match.opponent_short || match.opponent.split(' ')[0]} {match.opponent_score}
                 </span>
               </motion.div>
+            )}
+
+            {match.is_played && potm && (
+              <div className="mt-2 inline-flex items-center gap-2 font-mono text-[11px] px-2 py-1 rounded-full"
+                style={{
+                  background: 'rgba(201,168,76,0.08)',
+                  border: '1px solid rgba(201,168,76,0.3)',
+                  color: 'var(--mm)',
+                }}>
+                {(() => {
+                  const src = getPlayerImage(potm.short_name)
+                  return src ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={src} alt={potm.short_name} width={16} height={16}
+                      style={{ width: 16, height: 16, borderRadius: 4, objectFit: 'cover' }} />
+                  ) : null
+                })()}
+                <span>🏅 {potm.short_name}</span>
+              </div>
+            )}
+
+            {isFuture && (
+              <div className="mt-2 inline-flex items-center gap-1.5 font-mono text-[11px] px-2 py-1 rounded-full"
+                style={{
+                  background: 'rgba(0,229,255,0.08)',
+                  border: '1px solid rgba(0,229,255,0.25)',
+                  color: 'var(--accent)',
+                }}>
+                ⏱ {daysUntil === 1 ? 'Tomorrow' : `In ${daysUntil} days`}
+              </div>
             )}
           </div>
 

@@ -84,6 +84,12 @@ export type Performance = {
   availability_points: number
   total_points: number
   is_potm: boolean
+  how_out: string | null
+  fielder: string | null
+  bowler_name: string | null
+  wides: number
+  no_balls: number
+  dot_balls: number
 }
 
 export type OpponentBatting = {
@@ -95,6 +101,8 @@ export type OpponentBatting = {
   fours: number
   sixes: number
   how_out: string
+  fielder: string | null
+  bowler_name: string | null
 }
 
 export type OpponentBowling = {
@@ -105,6 +113,31 @@ export type OpponentBowling = {
   maidens: number
   runs_conceded: number
   wickets: number
+  wides: number
+  no_balls: number
+  dot_balls: number
+}
+
+export type FallOfWicket = {
+  id: number
+  match_id: number
+  innings: 'mvcc' | 'opponent'
+  wicket_number: number
+  score: number
+  over_number: string | null
+  batsman_name: string | null
+}
+
+export type MatchExtras = {
+  id: number
+  match_id: number
+  innings: 'mvcc' | 'opponent'
+  byes: number
+  leg_byes: number
+  wides: number
+  no_balls: number
+  penalty: number
+  total_extras: number
 }
 
 export type AvailabilityStatus = 'available' | 'not_available' | 'tentative'

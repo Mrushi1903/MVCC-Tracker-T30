@@ -25,6 +25,15 @@ type PerfEntry = {
   runout_helper: number
   stumpings: number
   is_potm: boolean
+  // New from CSV — preserved through the admin flow so we can persist on save.
+  how_out: string | null
+  fielder: string | null
+  bowler_name: string | null
+  wides: number
+  no_balls: number
+  dot_balls: number
+  fours: number
+  sixes: number
 }
 
 type AdminTab = 'scorecard' | 'availability'
@@ -117,6 +126,9 @@ export default function AdminPage() {
         runs: 0, balls_faced: 0, overs_bowled: 0, runs_conceded: 0,
         wickets: 0, catches: 0, runout_fielder: 0, runout_helper: 0,
         stumpings: 0, is_potm: false,
+        how_out: null, fielder: null, bowler_name: null,
+        wides: 0, no_balls: 0, dot_balls: 0,
+        fours: 0, sixes: 0,
       })))
     }
     if (m) setMatches(m as Match[])
@@ -236,6 +248,14 @@ export default function AdminPage() {
         entry.runout_helper  = parsedPlayer.runout_helper
         entry.stumpings      = parsedPlayer.stumpings
         entry.is_potm        = parsedPlayer.is_potm
+        entry.how_out        = parsedPlayer.how_out
+        entry.fielder        = parsedPlayer.fielder
+        entry.bowler_name    = parsedPlayer.bowler_name
+        entry.wides          = parsedPlayer.wides
+        entry.no_balls       = parsedPlayer.no_balls
+        entry.dot_balls      = parsedPlayer.dot_balls
+        entry.fours          = parsedPlayer.fours
+        entry.sixes          = parsedPlayer.sixes
         count++
       }
       setEntries(newEntries)
@@ -304,10 +324,13 @@ export default function AdminPage() {
       return {
         match_id: selectedMatch, player_id: e.player_id,
         runs: e.runs, balls_faced: e.balls_faced,
+        fours: e.fours, sixes: e.sixes,
         overs_bowled: e.overs_bowled, runs_conceded: e.runs_conceded,
         wickets: e.wickets, catches: e.catches,
         runout_fielder: e.runout_fielder, runout_helper: e.runout_helper,
         stumpings: e.stumpings, is_potm: e.is_potm,
+        how_out: e.how_out, fielder: e.fielder, bowler_name: e.bowler_name,
+        wides: e.wides, no_balls: e.no_balls, dot_balls: e.dot_balls,
         batting_points: pts.batting_points, bowling_points: pts.bowling_points,
         fielding_points: pts.fielding_points, bonus_points: pts.bonus_points,
         availability_points,
@@ -316,7 +339,7 @@ export default function AdminPage() {
     })
     if (toInsert.length > 0) await supabase.from('performances').insert(toInsert)
 
-    // 5 — opponent batting / bowling
+    // 5 — opponent batting / bowling (now with dismissal fielder/bowler + bowler extras)
     await supabase.from('opponent_batting').delete().eq('match_id', selectedMatch)
     if (lastParsed?.opponent_batting && lastParsed.opponent_batting.length > 0) {
       await supabase.from('opponent_batting').insert(
@@ -333,6 +356,35 @@ export default function AdminPage() {
       await supabase.from('matches')
         .update({ opponent_short: lastParsed.opponent_name })
         .eq('id', selectedMatch)
+    }
+
+    // 6 — fall of wickets (replace both innings)
+    await supabase.from('fall_of_wickets').delete().eq('match_id', selectedMatch)
+    const fowRows: Array<{ match_id: number; innings: 'mvcc' | 'opponent'; wicket_number: number; score: number; over_number: string; batsman_name: string }> = []
+    for (const f of lastParsed?.mvcc_fow ?? []) {
+      fowRows.push({ match_id: selectedMatch, innings: 'mvcc', ...f })
+    }
+    for (const f of lastParsed?.opponent_fow ?? []) {
+      fowRows.push({ match_id: selectedMatch, innings: 'opponent', ...f })
+    }
+    if (fowRows.length > 0) await supabase.from('fall_of_wickets').insert(fowRows)
+
+    // 7 — match extras (one row per innings; upsert keyed on (match_id, innings))
+    if (lastParsed?.mvcc_extras) {
+      await supabase
+        .from('match_extras')
+        .upsert(
+          { match_id: selectedMatch, innings: 'mvcc', ...lastParsed.mvcc_extras },
+          { onConflict: 'match_id,innings' },
+        )
+    }
+    if (lastParsed?.opponent_extras) {
+      await supabase
+        .from('match_extras')
+        .upsert(
+          { match_id: selectedMatch, innings: 'opponent', ...lastParsed.opponent_extras },
+          { onConflict: 'match_id,innings' },
+        )
     }
 
     setSaving(false)
@@ -556,6 +608,37 @@ export default function AdminPage() {
                               <span className="font-mono" style={{ color: 'var(--hb)' }}>{b.wickets}/{b.runs_conceded} ({b.overs})</span>
                             </div>
                           ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {lastParsed && (lastParsed.mvcc_extras.total_extras > 0 || lastParsed.opponent_extras.total_extras > 0 || lastParsed.mvcc_fow.length > 0 || lastParsed.opponent_fow.length > 0) && (
+                      <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div className="rounded-xl p-3" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)' }}>
+                          <div className="font-mono text-xs tracking-widest uppercase mb-1.5" style={{ color: 'var(--mm)' }}>
+                            MVCC innings
+                          </div>
+                          <div className="font-mono text-[11px]" style={{ color: 'var(--text2)' }}>
+                            Extras: {lastParsed.mvcc_extras.total_extras} (b {lastParsed.mvcc_extras.byes}, lb {lastParsed.mvcc_extras.leg_byes}, w {lastParsed.mvcc_extras.wides}, nb {lastParsed.mvcc_extras.no_balls}, p {lastParsed.mvcc_extras.penalty})
+                          </div>
+                          {lastParsed.mvcc_fow.length > 0 && (
+                            <div className="font-mono text-[11px] mt-1" style={{ color: 'var(--text3)' }}>
+                              FOW: {lastParsed.mvcc_fow.map(f => `${f.wicket_number}-${f.score}`).join(', ')}
+                            </div>
+                          )}
+                        </div>
+                        <div className="rounded-xl p-3" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)' }}>
+                          <div className="font-mono text-xs tracking-widest uppercase mb-1.5" style={{ color: 'var(--hb)' }}>
+                            Opponent innings
+                          </div>
+                          <div className="font-mono text-[11px]" style={{ color: 'var(--text2)' }}>
+                            Extras: {lastParsed.opponent_extras.total_extras} (b {lastParsed.opponent_extras.byes}, lb {lastParsed.opponent_extras.leg_byes}, w {lastParsed.opponent_extras.wides}, nb {lastParsed.opponent_extras.no_balls}, p {lastParsed.opponent_extras.penalty})
+                          </div>
+                          {lastParsed.opponent_fow.length > 0 && (
+                            <div className="font-mono text-[11px] mt-1" style={{ color: 'var(--text3)' }}>
+                              FOW: {lastParsed.opponent_fow.map(f => `${f.wicket_number}-${f.score}`).join(', ')}
+                            </div>
+                          )}
                         </div>
                       </div>
                     )}
