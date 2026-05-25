@@ -6,7 +6,6 @@ import { supabase, fetchTournament, Player, Match, Availability, AvailabilitySta
 import { calculatePoints } from '@/lib/points'
 import { parseCricClubCSV } from '@/lib/parseCSV'
 import Nav from '@/components/Nav'
-import MatchCardModal from '@/components/MatchCardModal'
 
 const ADMIN_EMAILS = [
   'mrushireddy2232@gmail.com',  // Rushi
@@ -63,7 +62,6 @@ export default function AdminPage() {
   const [saving,        setSaving]        = useState(false)
   const [saved,         setSaved]         = useState(false)
   const [saveError,     setSaveError]     = useState<string | null>(null)
-  const [showCard,      setShowCard]      = useState(false)
   const [parsing,     setParsing]     = useState(false)
   const [parseMsg,    setParseMsg]    = useState('')
   const [parsedCount, setParsedCount] = useState(0)
@@ -850,40 +848,6 @@ export default function AdminPage() {
                     </motion.div>
                   )}
 
-                  {saved && selectedMatch && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 6 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.15, type: 'spring', stiffness: 220, damping: 20 }}
-                      className="mt-4 rounded-xl px-4 py-3 flex items-center justify-between gap-3 flex-wrap"
-                      style={{
-                        background: 'rgba(201,168,76,0.08)',
-                        border: '1px solid rgba(201,168,76,0.3)',
-                      }}
-                    >
-                      <div>
-                        <div className="font-display text-lg tracking-wider" style={{ color: 'var(--mm)' }}>
-                          📸 Match card ready to share
-                        </div>
-                        <div className="font-mono text-[11px] mt-0.5" style={{ color: 'var(--text3)' }}>
-                          1080×1080 Instagram-ready · auto-generated from the saved scorecard
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => setShowCard(true)}
-                        className="px-4 py-2 rounded-xl font-mono text-xs tracking-widest uppercase whitespace-nowrap"
-                        style={{
-                          background: 'rgba(0,229,255,0.10)',
-                          border: '1px solid var(--accent-border)',
-                          color: 'var(--accent)',
-                          cursor: 'pointer',
-                          boxShadow: '0 0 14px rgba(0,229,255,0.18)',
-                        }}
-                      >
-                        Preview & Download
-                      </button>
-                    </motion.div>
-                  )}
                 </>
               )}
             </motion.div>
@@ -914,19 +878,6 @@ export default function AdminPage() {
           )}
         </AnimatePresence>
       </main>
-
-      {showCard && selectedMatch && (() => {
-        const m = matches.find(x => x.id === selectedMatch)
-        if (!m) return null
-        return (
-          <MatchCardModal
-            matchId={m.id}
-            matchNumber={m.match_number}
-            opponent={m.opponent_short || m.opponent.split(' ').slice(0, 2).join(' ')}
-            onClose={() => setShowCard(false)}
-          />
-        )
-      })()}
     </div>
   )
 }
