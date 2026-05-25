@@ -1,13 +1,26 @@
 'use client'
 
 import { useEffect, useState, use, useMemo } from 'react'
+import dynamic from 'next/dynamic'
 import Image from 'next/image'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
-import {
-  LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ReferenceLine,
-} from 'recharts'
+
+// Recharts is the heaviest dep on this page (~80kB gzipped). Loading it lazily
+// drops the initial JS for /t30/player/* dramatically — the chart fades in
+// once the page mounts, while everything else paints immediately.
+const PointsChart = dynamic(() => import('./PointsChart'), {
+  ssr: false,
+  loading: () => (
+    <div
+      className="h-full flex items-center justify-center font-mono text-xs tracking-widest"
+      style={{ color: 'var(--text3)' }}
+    >
+      LOADING CHART…
+    </div>
+  ),
+})
 import { supabase, fetchTournament, Player, Match, Performance } from '@/lib/supabase'
 import { calculatePoints, getStrikeRate, getEconomy } from '@/lib/points'
 import { getPlayerImage } from '@/lib/playerImages'
@@ -372,63 +385,12 @@ export default function PlayerProfilePage({ params }: { params: Promise<{ slug: 
                     No matches played yet
                   </div>
                 ) : (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={stats.chartPoints} margin={{ top: 16, right: 16, bottom: 12, left: -10 }}>
-                      <CartesianGrid stroke="rgba(255,255,255,0.05)" vertical={false} />
-                      <XAxis
-                        dataKey="match_number"
-                        tick={{ fill: '#94A3B8', fontFamily: 'JetBrains Mono', fontSize: 11 }}
-                        axisLine={{ stroke: 'rgba(255,255,255,0.1)' }}
-                        tickLine={false}
-                        tickFormatter={(v) => `M${v}`}
-                      />
-                      <YAxis
-                        tick={{ fill: '#94A3B8', fontFamily: 'JetBrains Mono', fontSize: 11 }}
-                        axisLine={{ stroke: 'rgba(255,255,255,0.1)' }}
-                        tickLine={false}
-                        width={36}
-                      />
-                      <ReferenceLine
-                        y={stats.seasonAvg}
-                        stroke="rgba(255,255,255,0.2)"
-                        strokeDasharray="3 3"
-                        label={{
-                          value: `Avg ${stats.seasonAvg.toFixed(0)}`,
-                          position: 'right',
-                          fill: '#64748B',
-                          fontSize: 10,
-                          fontFamily: 'JetBrains Mono',
-                        }}
-                      />
-                      <Tooltip
-                        cursor={{ stroke: color, strokeOpacity: 0.3, strokeWidth: 1 }}
-                        contentStyle={{
-                          background: 'rgba(15,21,40,0.95)',
-                          border: `1px solid ${borderColor}`,
-                          borderRadius: 12,
-                          fontFamily: 'JetBrains Mono',
-                          fontSize: 12,
-                          color: '#E2E8F0',
-                        }}
-                        labelFormatter={(v, payload) => {
-                          const item = payload?.[0]?.payload as { label?: string } | undefined
-                          return item?.label ?? `M${v}`
-                        }}
-                        formatter={(v) => [`${v} pts`, ''] as [string, string]}
-                      />
-                      <Line
-                        type="monotone"
-                        dataKey="pts"
-                        stroke={color}
-                        strokeWidth={2.5}
-                        dot={{ fill: color, r: 4, strokeWidth: 0 }}
-                        activeDot={{ r: 6, fill: color, stroke: 'rgba(255,255,255,0.3)', strokeWidth: 2 }}
-                        isAnimationActive
-                        animationDuration={900}
-                        animationEasing="ease-out"
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
+                  <PointsChart
+                    data={stats.chartPoints}
+                    color={color}
+                    borderColor={borderColor}
+                    seasonAvg={stats.seasonAvg}
+                  />
                 )}
               </motion.div>
 

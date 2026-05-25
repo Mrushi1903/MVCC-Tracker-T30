@@ -28,19 +28,31 @@ export default function HomePage() {
   useEffect(() => {
     let cancelled = false
     ;(async () => {
-      const { data: tdata } = await supabase
-        .from('tournaments')
-        .select('*')
-        .order('status', { ascending: true }) // active < completed < upcoming alpha; we sort below anyway
-        .order('year', { ascending: false })
+      // Players never change per tournament, so fetch them once and share.
+      // Run tournaments + players in parallel to halve the first round-trip.
+      const [tournamentsRes, playersRes] = await Promise.all([
+        supabase
+          .from('tournaments')
+          .select('*')
+          .order('status', { ascending: true })
+          .order('year', { ascending: false }),
+        supabase
+          .from('players')
+          .select('id, name, short_name, team, jersey_number, cc_player_id, is_external'),
+      ])
 
-      if (cancelled || !tdata) { setLoading(false); return }
-      const sorted = (tdata as Tournament[]).slice().sort((a, b) => statusRank(a.status) - statusRank(b.status))
+      if (cancelled || !tournamentsRes.data) { setLoading(false); return }
+      const sorted = (tournamentsRes.data as Tournament[])
+        .slice()
+        .sort((a, b) => statusRank(a.status) - statusRank(b.status))
+      const allPlayers = (playersRes.data as Player[]) ?? []
 
-      const enriched = await Promise.all(sorted.map(async t => ({
-        ...t,
-        stats: await loadStats(t.id),
-      })))
+      const enriched = await Promise.all(
+        sorted.map(async t => ({
+          ...t,
+          stats: await loadStats(t.id, allPlayers),
+        })),
+      )
       if (cancelled) return
       setTournaments(enriched)
       setLoading(false)
@@ -142,8 +154,8 @@ function statusRank(s: Tournament['status']): number {
   return 2
 }
 
-async function loadStats(tournamentId: number): Promise<TournamentStats> {
-  // Matches in this tournament
+async function loadStats(tournamentId: number, players: Player[]): Promise<TournamentStats> {
+  // Matches first (we need their IDs to query performances).
   const { data: matches } = await supabase
     .from('matches')
     .select('id, is_played, result')
@@ -158,19 +170,15 @@ async function loadStats(tournamentId: number): Promise<TournamentStats> {
     return { matches_total, matches_played, wins, losses, mm_points: 0, hb_points: 0, leader: null }
   }
 
-  // Performances for those matches
+  // Players list is passed in (already fetched at the top level), so we just
+  // fetch perfs here. One round-trip instead of two per tournament.
   const { data: perfs } = await supabase
     .from('performances')
     .select('*')
     .in('match_id', matchIds)
 
-  // Players for team + external lookup
-  const { data: players } = await supabase
-    .from('players')
-    .select('id, short_name, team, is_external')
-
   const playerMap = new Map<number, Player>()
-  for (const p of (players ?? []) as Player[]) playerMap.set(p.id, p)
+  for (const p of players) playerMap.set(p.id, p)
 
   let mm_points = 0
   let hb_points = 0

@@ -112,10 +112,14 @@ export default function HomePage() {
 
   async function fetchLeaderboard() {
     setLoading(true)
-    const tournament = await fetchTournament('T30')
+    // Tournament + players are independent — run them in parallel for ~half
+    // the initial latency on this page.
+    const [tournament, playersRes] = await Promise.all([
+      fetchTournament('T30'),
+      supabase.from('players').select('*').order('team').order('name'),
+    ])
     const tournamentId = tournament?.id
-
-    const { data: rawPlayers } = await supabase.from('players').select('*').order('team').order('name')
+    const rawPlayers = playersRes.data
     if (!rawPlayers) { setLoading(false); return }
 
     // Scope performances to this tournament's matches.
