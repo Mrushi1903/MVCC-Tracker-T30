@@ -4,11 +4,13 @@ import { motion } from 'framer-motion'
 import { Match, supabase } from '@/lib/supabase'
 import { getPlayerImage } from '@/lib/playerImages'
 import ScorecardModal from '@/components/ScorecardModal'
+import MatchCardModal from '@/components/MatchCardModal'
 
 type PotmInfo = { short_name: string }
 
 export default function ScheduleCard({ match }: { match: Match }) {
   const [showScorecard, setShowScorecard] = useState(false)
+  const [showCard, setShowCard] = useState(false)
   const [potm, setPotm] = useState<PotmInfo | null>(null)
 
   const [year, month, day] = match.date.split('-').map(Number)
@@ -165,14 +167,29 @@ export default function ScheduleCard({ match }: { match: Match }) {
             </motion.div>
 
             {match.is_played && (
-              <div className="font-mono text-[9px] tracking-widest uppercase flex items-center gap-1"
-                style={{ color: 'var(--text3)' }}>
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none">
-                  <path d="M9 5H7C5.89543 5 5 5.89543 5 7V19C5 20.1046 5.89543 21 7 21H17C18.1046 21 19 20.1046 19 19V7C19 5.89543 18.1046 5 17 5H15M9 12H15M9 16H13"
-                    stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                </svg>
-                View Scorecard
-              </div>
+              <>
+                <button
+                  onClick={e => { e.stopPropagation(); setShowCard(true) }}
+                  className="font-mono text-[10px] tracking-widest uppercase px-2.5 py-1 rounded-full flex items-center gap-1.5"
+                  style={{
+                    background: 'rgba(0,229,255,0.08)',
+                    border: '1px solid var(--accent-border)',
+                    color: 'var(--accent)',
+                    cursor: 'pointer',
+                  }}
+                  title="Generate Instagram-ready share card"
+                >
+                  📸 Card
+                </button>
+                <div className="font-mono text-[9px] tracking-widest uppercase flex items-center gap-1"
+                  style={{ color: 'var(--text3)' }}>
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none">
+                    <path d="M9 5H7C5.89543 5 5 5.89543 5 7V19C5 20.1046 5.89543 21 7 21H17C18.1046 21 19 20.1046 19 19V7C19 5.89543 18.1046 5 17 5H15M9 12H15M9 16H13"
+                      stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                  </svg>
+                  View Scorecard
+                </div>
+              </>
             )}
           </div>
         </div>
@@ -180,6 +197,14 @@ export default function ScheduleCard({ match }: { match: Match }) {
 
       {showScorecard && (
         <ScorecardModal match={match} onClose={() => setShowScorecard(false)} />
+      )}
+      {showCard && (
+        <MatchCardModal
+          matchId={match.id}
+          matchNumber={match.match_number}
+          opponent={match.opponent_short || match.opponent.split(' ').slice(0, 2).join(' ')}
+          onClose={() => setShowCard(false)}
+        />
       )}
     </>
   )

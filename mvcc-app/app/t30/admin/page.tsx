@@ -6,6 +6,7 @@ import { supabase, fetchTournament, Player, Match, Availability, AvailabilitySta
 import { calculatePoints } from '@/lib/points'
 import { parseCricClubCSV } from '@/lib/parseCSV'
 import Nav from '@/components/Nav'
+import MatchCardModal from '@/components/MatchCardModal'
 
 const ADMIN_EMAILS = [
   'mrushireddy2232@gmail.com',  // Rushi
@@ -61,6 +62,8 @@ export default function AdminPage() {
   const [entries,       setEntries]       = useState<PerfEntry[]>([])
   const [saving,        setSaving]        = useState(false)
   const [saved,         setSaved]         = useState(false)
+  const [saveError,     setSaveError]     = useState<string | null>(null)
+  const [showCard,      setShowCard]      = useState(false)
   const [parsing,     setParsing]     = useState(false)
   const [parseMsg,    setParseMsg]    = useState('')
   const [parsedCount, setParsedCount] = useState(0)
@@ -283,14 +286,27 @@ export default function AdminPage() {
   async function handleSave() {
     if (!selectedMatch) return alert('Select a match first')
     setSaving(true)
+    setSaveError(null)
+
+    // Tiny helper — any step that returns a PostgrestError stops the flow
+    // and surfaces it to the UI. Without this, failures silently produce
+    // zero rows (as happened pre-migration-004).
+    let firstError: string | null = null
+    const check = (step: string, err: { message?: string } | null | undefined) => {
+      if (err && !firstError) {
+        firstError = `${step}: ${err.message ?? 'unknown error'}`
+        console.error(`[admin save] ${step}`, err)
+      }
+    }
 
     // 1 — Fetch existing availability_points for this match (so we preserve the bonus).
-    const { data: prevPerfs } = await supabase
+    const prevPerfsRes = await supabase
       .from('performances')
       .select('player_id, availability_points')
       .eq('match_id', selectedMatch)
+    check('fetch prev perfs', prevPerfsRes.error)
     const prevAvail = new Map<number, number>(
-      (prevPerfs ?? []).map(r => [r.player_id, r.availability_points ?? 0])
+      (prevPerfsRes.data ?? []).map(r => [r.player_id, r.availability_points ?? 0])
     )
 
     // 2 — Update match record
@@ -301,10 +317,10 @@ export default function AdminPage() {
       opponent_score: opponentScore,
       potm_player_id: entries.find(e => e.is_potm)?.player_id ?? null,
     }
-    await supabase.from('matches').update(matchData).eq('id', selectedMatch)
+    check('update match', (await supabase.from('matches').update(matchData).eq('id', selectedMatch)).error)
 
     // 3 — Wipe old MVCC performances for this match
-    await supabase.from('performances').delete().eq('match_id', selectedMatch)
+    check('delete old perfs', (await supabase.from('performances').delete().eq('match_id', selectedMatch)).error)
 
     // 4 — Insert fresh performances (preserve availability_points)
     const toInsert = entries.filter(e =>
@@ -337,29 +353,31 @@ export default function AdminPage() {
         total_points: pts.total_points,
       }
     })
-    if (toInsert.length > 0) await supabase.from('performances').insert(toInsert)
+    if (toInsert.length > 0) {
+      check('insert perfs', (await supabase.from('performances').insert(toInsert)).error)
+    }
 
     // 5 — opponent batting / bowling (now with dismissal fielder/bowler + bowler extras)
-    await supabase.from('opponent_batting').delete().eq('match_id', selectedMatch)
+    check('delete opp batting', (await supabase.from('opponent_batting').delete().eq('match_id', selectedMatch)).error)
     if (lastParsed?.opponent_batting && lastParsed.opponent_batting.length > 0) {
-      await supabase.from('opponent_batting').insert(
+      check('insert opp batting', (await supabase.from('opponent_batting').insert(
         lastParsed.opponent_batting.map(b => ({ match_id: selectedMatch, ...b }))
-      )
+      )).error)
     }
-    await supabase.from('opponent_bowling').delete().eq('match_id', selectedMatch)
+    check('delete opp bowling', (await supabase.from('opponent_bowling').delete().eq('match_id', selectedMatch)).error)
     if (lastParsed?.opponent_bowling && lastParsed.opponent_bowling.length > 0) {
-      await supabase.from('opponent_bowling').insert(
+      check('insert opp bowling', (await supabase.from('opponent_bowling').insert(
         lastParsed.opponent_bowling.map(b => ({ match_id: selectedMatch, ...b }))
-      )
+      )).error)
     }
     if (lastParsed?.opponent_name) {
-      await supabase.from('matches')
+      check('update opponent_short', (await supabase.from('matches')
         .update({ opponent_short: lastParsed.opponent_name })
-        .eq('id', selectedMatch)
+        .eq('id', selectedMatch)).error)
     }
 
     // 6 — fall of wickets (replace both innings)
-    await supabase.from('fall_of_wickets').delete().eq('match_id', selectedMatch)
+    check('delete FOW', (await supabase.from('fall_of_wickets').delete().eq('match_id', selectedMatch)).error)
     const fowRows: Array<{ match_id: number; innings: 'mvcc' | 'opponent'; wicket_number: number; score: number; over_number: string; batsman_name: string }> = []
     for (const f of lastParsed?.mvcc_fow ?? []) {
       fowRows.push({ match_id: selectedMatch, innings: 'mvcc', ...f })
@@ -367,29 +385,35 @@ export default function AdminPage() {
     for (const f of lastParsed?.opponent_fow ?? []) {
       fowRows.push({ match_id: selectedMatch, innings: 'opponent', ...f })
     }
-    if (fowRows.length > 0) await supabase.from('fall_of_wickets').insert(fowRows)
+    if (fowRows.length > 0) {
+      check('insert FOW', (await supabase.from('fall_of_wickets').insert(fowRows)).error)
+    }
 
     // 7 — match extras (one row per innings; upsert keyed on (match_id, innings))
     if (lastParsed?.mvcc_extras) {
-      await supabase
+      check('upsert mvcc extras', (await supabase
         .from('match_extras')
         .upsert(
           { match_id: selectedMatch, innings: 'mvcc', ...lastParsed.mvcc_extras },
           { onConflict: 'match_id,innings' },
-        )
+        )).error)
     }
     if (lastParsed?.opponent_extras) {
-      await supabase
+      check('upsert opponent extras', (await supabase
         .from('match_extras')
         .upsert(
           { match_id: selectedMatch, innings: 'opponent', ...lastParsed.opponent_extras },
           { onConflict: 'match_id,innings' },
-        )
+        )).error)
     }
 
     setSaving(false)
-    setSaved(true)
-    setTimeout(() => setSaved(false), 3000)
+    if (firstError) {
+      setSaveError(firstError)
+    } else {
+      setSaved(true)
+      setTimeout(() => setSaved(false), 3000)
+    }
   }
 
   const mmPlayers = players.filter(p => p.team === 'MM')
@@ -807,6 +831,59 @@ export default function AdminPage() {
                       {saving ? 'SAVING...' : saved ? '✓ SAVED!' : 'SAVE SCORECARD'}
                     </motion.button>
                   </AnimatePresence>
+
+                  {saveError && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="mt-3 rounded-xl px-4 py-3 font-mono text-xs"
+                      style={{
+                        background: 'rgba(244,63,94,0.10)',
+                        border: '1px solid rgba(244,63,94,0.35)',
+                        color: 'var(--red)',
+                      }}
+                    >
+                      ⚠️ Save failed — {saveError}
+                      <div className="mt-1" style={{ color: 'var(--text3)' }}>
+                        Check the browser console for full details, and make sure all DB migrations have run.
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {saved && selectedMatch && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.15, type: 'spring', stiffness: 220, damping: 20 }}
+                      className="mt-4 rounded-xl px-4 py-3 flex items-center justify-between gap-3 flex-wrap"
+                      style={{
+                        background: 'rgba(201,168,76,0.08)',
+                        border: '1px solid rgba(201,168,76,0.3)',
+                      }}
+                    >
+                      <div>
+                        <div className="font-display text-lg tracking-wider" style={{ color: 'var(--mm)' }}>
+                          📸 Match card ready to share
+                        </div>
+                        <div className="font-mono text-[11px] mt-0.5" style={{ color: 'var(--text3)' }}>
+                          1080×1080 Instagram-ready · auto-generated from the saved scorecard
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setShowCard(true)}
+                        className="px-4 py-2 rounded-xl font-mono text-xs tracking-widest uppercase whitespace-nowrap"
+                        style={{
+                          background: 'rgba(0,229,255,0.10)',
+                          border: '1px solid var(--accent-border)',
+                          color: 'var(--accent)',
+                          cursor: 'pointer',
+                          boxShadow: '0 0 14px rgba(0,229,255,0.18)',
+                        }}
+                      >
+                        Preview & Download
+                      </button>
+                    </motion.div>
+                  )}
                 </>
               )}
             </motion.div>
@@ -837,6 +914,19 @@ export default function AdminPage() {
           )}
         </AnimatePresence>
       </main>
+
+      {showCard && selectedMatch && (() => {
+        const m = matches.find(x => x.id === selectedMatch)
+        if (!m) return null
+        return (
+          <MatchCardModal
+            matchId={m.id}
+            matchNumber={m.match_number}
+            opponent={m.opponent_short || m.opponent.split(' ').slice(0, 2).join(' ')}
+            onClose={() => setShowCard(false)}
+          />
+        )
+      })()}
     </div>
   )
 }
