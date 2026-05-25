@@ -8,14 +8,20 @@ import { getOpponentLogo, getOpponentInitials } from '@/lib/opponentLogos'
 
 export const runtime = 'edge'
 
-const INTER_BOLD_URL  = 'https://fonts.gstatic.com/s/inter/v13/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuFuYAZ9hiJ-Ek-_EeA.woff2'
-const INTER_BLACK_URL = 'https://fonts.gstatic.com/s/inter/v13/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuFuYAZ9hiJ-Ek-_PfA.woff2'
-const INTER_REG_URL   = 'https://fonts.gstatic.com/s/inter/v13/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuI6fAZ9hiJ-Ek-_EeA.woff2'
+// Reliable font URLs from @fontsource on jsdelivr — these always resolve,
+// unlike the gstatic URLs which carry rotating hashes.
+const INTER_REG_URL   = 'https://cdn.jsdelivr.net/npm/@fontsource/inter@5.0.18/files/inter-latin-400-normal.woff'
+const INTER_BOLD_URL  = 'https://cdn.jsdelivr.net/npm/@fontsource/inter@5.0.18/files/inter-latin-700-normal.woff'
+const INTER_BLACK_URL = 'https://cdn.jsdelivr.net/npm/@fontsource/inter@5.0.18/files/inter-latin-900-normal.woff'
 
-// Re-fetched per request (Edge runtime caches the response anyway).
-async function loadFont(url: string): Promise<ArrayBuffer> {
-  const res = await fetch(url)
-  return res.arrayBuffer()
+async function loadFont(url: string): Promise<ArrayBuffer | null> {
+  try {
+    const res = await fetch(url)
+    if (!res.ok) return null
+    return await res.arrayBuffer()
+  } catch {
+    return null
+  }
 }
 
 type MatchRow = {
@@ -80,6 +86,19 @@ export async function GET(
   _req: Request,
   ctx: { params: Promise<{ matchId: string }> },
 ) {
+  try {
+    return await renderCard(ctx)
+  } catch (err) {
+    console.error('[match-card] render failed', err)
+    const msg = err instanceof Error ? err.message : String(err)
+    return new Response(JSON.stringify({ error: msg }, null, 2), {
+      status: 500,
+      headers: { 'content-type': 'application/json' },
+    })
+  }
+}
+
+async function renderCard(ctx: { params: Promise<{ matchId: string }> }) {
   const { matchId } = await ctx.params
   const id = parseInt(matchId)
   if (!id || isNaN(id)) {
@@ -141,11 +160,17 @@ export async function GET(
   const potmPlayer = match.potm_player_id ? playerById.get(match.potm_player_id) : null
 
   // ── Fonts ───────────────────────────────────────────────────
+  // If any font fetch fails, we still render — next/og falls back to a system font.
   const [interBold, interBlack, interReg] = await Promise.all([
     loadFont(INTER_BOLD_URL),
     loadFont(INTER_BLACK_URL),
     loadFont(INTER_REG_URL),
   ])
+  type FontWeight = 100 | 200 | 300 | 400 | 500 | 600 | 700 | 800 | 900
+  const fonts: Array<{ name: string; data: ArrayBuffer; weight: FontWeight; style: 'normal' }> = []
+  if (interReg)   fonts.push({ name: 'Inter',      data: interReg,   weight: 400, style: 'normal' })
+  if (interBold)  fonts.push({ name: 'Inter',      data: interBold,  weight: 700, style: 'normal' })
+  if (interBlack) fonts.push({ name: 'InterBlack', data: interBlack, weight: 900, style: 'normal' })
 
   // ── Date string ─────────────────────────────────────────────
   const [y, mo, d] = (match.date ?? '').split('-').map(Number)
@@ -359,11 +384,7 @@ export async function GET(
     {
       width: 1080,
       height: 1080,
-      fonts: [
-        { name: 'Inter',      data: interReg,   weight: 400, style: 'normal' },
-        { name: 'Inter',      data: interBold,  weight: 700, style: 'normal' },
-        { name: 'InterBlack', data: interBlack, weight: 900, style: 'normal' },
-      ],
+      fonts,
       // Cache aggressively at the edge — same matchId+data produces same image.
       headers: {
         'cache-control': 'public, max-age=60, s-maxage=300, stale-while-revalidate=600',
