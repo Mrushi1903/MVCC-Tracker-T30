@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Image from 'next/image'
+import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { supabase, Performance, Match } from '@/lib/supabase'
 import { getPlayerImage } from '@/lib/playerImages'
@@ -340,6 +341,22 @@ export default function PlayerModal({ player, onClose }: { player: Player; onClo
               ))}
             </motion.div>
           )}
+
+          {/* Full profile CTA */}
+          <Link
+            href={`/t30/player/${player.short_name.toLowerCase()}`}
+            onClick={onClose}
+            className="mt-5 mb-2 block w-full text-center py-3 rounded-xl font-mono text-xs tracking-[3px] uppercase"
+            style={{
+              background: 'rgba(0,229,255,0.08)',
+              border: '1px solid var(--accent-border)',
+              color: 'var(--accent)',
+              boxShadow: '0 0 18px rgba(0,229,255,0.15)',
+              transition: 'background 200ms ease, box-shadow 200ms ease',
+            }}
+          >
+            View Full Profile →
+          </Link>
 
           {/* Fade hint at bottom showing scroll continues */}
           <div

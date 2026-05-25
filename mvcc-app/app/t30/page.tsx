@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Image from 'next/image'
+import Link from 'next/link'
 import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from 'framer-motion'
 import { supabase, fetchTournament } from '@/lib/supabase'
 import { calculatePoints } from '@/lib/points'
@@ -11,6 +12,8 @@ import TeamBanner from '@/components/TeamBanner'
 import PlayerModal from '@/components/PlayerModal'
 import BackgroundCanvas from '@/components/BackgroundCanvas'
 import HorseWatermark from '@/components/HorseWatermark'
+
+type StreakType = 'hot' | 'cold' | 'neutral'
 
 type PlayerRow = {
   id: number
@@ -24,9 +27,41 @@ type PlayerRow = {
   total_wickets: number
   total_catches: number
   matches_played: number
+  streak: StreakType
+  last_two_avg: number
+  season_avg: number
 }
 
 const PODIUM_MEDALS = ['🥇', '🥈', '🥉']
+
+function StreakBadge({ streak, lastTwoAvg, seasonAvg }: { streak: StreakType; lastTwoAvg: number; seasonAvg: number }) {
+  if (streak === 'neutral') return null
+  const isHot = streak === 'hot'
+  const tip = `Last 2 avg: ${lastTwoAvg.toFixed(1)} pts · Season avg: ${seasonAvg.toFixed(1)} pts`
+  return (
+    <motion.span
+      title={tip}
+      aria-label={tip}
+      initial={{ opacity: 0, scale: 0.7 }}
+      animate={{
+        opacity: 1,
+        scale: 1,
+        filter: isHot
+          ? ['drop-shadow(0 0 4px rgba(245,158,11,0.4))', 'drop-shadow(0 0 10px rgba(245,158,11,0.85))', 'drop-shadow(0 0 4px rgba(245,158,11,0.4))']
+          : ['drop-shadow(0 0 4px rgba(56,189,248,0.4))', 'drop-shadow(0 0 10px rgba(56,189,248,0.85))', 'drop-shadow(0 0 4px rgba(56,189,248,0.4))'],
+      }}
+      transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
+      style={{
+        display: 'inline-block',
+        fontSize: 12,
+        lineHeight: 1,
+        cursor: 'help',
+      }}
+    >
+      {isHot ? '🔥' : '❄️'}
+    </motion.span>
+  )
+}
 
 function CountUp({ value, className, style }: { value: number; className?: string; style?: React.CSSProperties }) {
   const mv = useMotionValue(0)
@@ -104,8 +139,13 @@ export default function HomePage() {
         team: pl.team, jersey_number: pl.jersey_number,
         is_external: pl.is_external ?? false,
         total_points: 0, total_runs: 0, total_wickets: 0, total_catches: 0, matches_played: 0,
+        streak: 'neutral', last_two_avg: 0, season_avg: 0,
       })
     }
+
+    // Track per-player perf points (ordered by match_id) for streak calc.
+    const perfsByPlayer = new Map<number, { match_id: number; pts: number }[]>()
+
     if (perfs) {
       for (const perf of perfs) {
         const p = playerMap.get(perf.player_id)
@@ -123,8 +163,29 @@ export default function HomePage() {
         p.total_wickets += perf.wickets
         p.total_catches += perf.catches
         p.matches_played += 1
+
+        if (!perfsByPlayer.has(perf.player_id)) perfsByPlayer.set(perf.player_id, [])
+        perfsByPlayer.get(perf.player_id)!.push({ match_id: perf.match_id, pts: pts.total_points })
       }
     }
+
+    // Compute streak per player.
+    // Hot:  last-2 avg > season avg * 1.20
+    // Cold: last-2 avg < season avg * 0.80
+    // Need at least 2 matches played to assign a streak.
+    for (const p of Array.from(playerMap.values())) {
+      if (p.matches_played < 2) continue
+      const list = (perfsByPlayer.get(p.id) ?? []).slice().sort((a, b) => a.match_id - b.match_id)
+      const lastTwo = list.slice(-2)
+      const lastTwoAvg = (lastTwo[0].pts + lastTwo[1].pts) / 2
+      const seasonAvg = p.total_points / p.matches_played
+      p.last_two_avg = lastTwoAvg
+      p.season_avg = seasonAvg
+      if (seasonAvg <= 0) continue
+      if (lastTwoAvg >= seasonAvg * 1.2) p.streak = 'hot'
+      else if (lastTwoAvg <= seasonAvg * 0.8) p.streak = 'cold'
+    }
+
     setPlayers(Array.from(playerMap.values()).sort((a, b) => b.total_points - a.total_points))
     setLoading(false)
   }
@@ -289,8 +350,9 @@ export default function HomePage() {
                           )}
                         </div>
 
-                        <div className="font-display text-2xl tracking-wider mb-0.5" style={{ color: 'var(--text)' }}>
+                        <div className="font-display text-2xl tracking-wider mb-0.5 flex items-center justify-center gap-2" style={{ color: 'var(--text)' }}>
                           {player.short_name.toUpperCase()}
+                          <StreakBadge streak={player.streak} lastTwoAvg={player.last_two_avg} seasonAvg={player.season_avg} />
                         </div>
                         <div className="font-mono text-xs mb-4" style={{ color: 'var(--text3)' }}>
                           {player.team === 'MM' ? 'Mighty Mavericks' : 'Hell Boys'}
@@ -455,7 +517,15 @@ export default function HomePage() {
 
                       <div className="flex-1 min-w-0">
                         <div className="font-semibold text-sm flex items-center gap-1.5" style={{ color: 'var(--text)' }}>
-                          {player.short_name}
+                          <Link
+                            href={`/t30/player/${player.short_name.toLowerCase()}`}
+                            onClick={e => e.stopPropagation()}
+                            className="hover:underline decoration-1 underline-offset-2"
+                            style={{ color: 'var(--text)' }}
+                          >
+                            {player.short_name}
+                          </Link>
+                          <StreakBadge streak={player.streak} lastTwoAvg={player.last_two_avg} seasonAvg={player.season_avg} />
                           {player.is_external && (
                             <span
                               className="font-mono"
