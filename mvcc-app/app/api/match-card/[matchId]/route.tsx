@@ -57,14 +57,6 @@ const COL_BG_BOT    = '#050d1a'
 const COL_MVCC_BAND = '#1a2540'
 const COL_OPP_BAND  = '#0f1d30'
 
-const ORIGIN = process.env.NEXT_PUBLIC_SITE_URL || 'https://mvcc-tracker-t30.vercel.app'
-
-function absoluteLogo(path: string | null): string | null {
-  if (!path) return null
-  if (path.startsWith('http')) return path
-  return `${ORIGIN}${path}`
-}
-
 function shortFullName(name: string): string {
   // "Amarendra Nuvvala" → "AMARENDRA N"; single token returned as-is.
   const parts = name.trim().split(/\s+/)
@@ -198,8 +190,8 @@ async function renderCard(req: Request, ctx: { params: Promise<{ matchId: string
   const [y, mo, d] = (match.date ?? '').split('-').map(Number)
   const dateStr = !isNaN(y) ? new Date(y, mo - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ''
 
-  const opponentLogo = absoluteLogo(getOpponentLogo(match.opponent))
-  const mvccLogo     = absoluteLogo('/mavericks-logo.jpeg')
+  // Logos are kept in `getOpponentLogo` for future use, but the rendered card
+  // currently shows initials-only badges to avoid Edge-runtime image fetches.
   const opponentInitials = getOpponentInitials(match.opponent)
 
   // ── Result banner ───────────────────────────────────────────
@@ -264,27 +256,22 @@ async function renderCard(req: Request, ctx: { params: Promise<{ matchId: string
           {/* Team row */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center' }}>
-              {mvccLogo ? (
-                <img
-                  src={mvccLogo}
-                  width={64}
-                  height={64}
-                  style={{ borderRadius: 32, objectFit: 'cover', border: `2px solid ${COL_TEAM_MM}` }}
-                />
-              ) : (
-                <div style={{
-                  width: 64, height: 64, borderRadius: 32, display: 'flex',
-                  alignItems: 'center', justifyContent: 'center',
-                  background: 'rgba(240,185,91,0.15)', color: COL_TEAM_MM,
-                  fontSize: 28, fontWeight: 700,
-                }}>MV</div>
-              )}
+              <div style={{
+                width: 64, height: 64, borderRadius: 32, display: 'flex',
+                alignItems: 'center', justifyContent: 'center',
+                background: 'rgba(240,185,91,0.15)',
+                border: `2px solid ${COL_TEAM_MM}`,
+                color: COL_TEAM_MM,
+                fontSize: 24, fontWeight: 700, letterSpacing: 1,
+              }}>
+                MV
+              </div>
               <div style={{ marginLeft: 18, display: 'flex', alignItems: 'baseline' }}>
                 <div style={{ fontSize: 32, fontWeight: 700, letterSpacing: 1, color: 'white' }}>MAVERICKS CC</div>
                 <div style={{ fontSize: 28, fontWeight: 700, letterSpacing: 1, color: COL_MUTED, marginLeft: 10 }}>MVCC</div>
               </div>
             </div>
-            <div style={{ fontFamily: '"InterBlack"', fontSize: 56, color: COL_TEAM_MM, letterSpacing: 1 }}>
+            <div style={{ display: 'flex', fontFamily: '"InterBlack"', fontSize: 56, color: COL_TEAM_MM, letterSpacing: 1 }}>
               {match.mvcc_score || '—'}
             </div>
           </div>
@@ -319,26 +306,21 @@ async function renderCard(req: Request, ctx: { params: Promise<{ matchId: string
         <div style={{ display: 'flex', flexDirection: 'column', background: COL_OPP_BAND, padding: '20px 48px 22px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center' }}>
-              {opponentLogo ? (
-                <img
-                  src={opponentLogo}
-                  width={64}
-                  height={64}
-                  style={{ borderRadius: 32, objectFit: 'cover', border: `2px solid ${COL_TEAM_OPP}` }}
-                />
-              ) : (
-                <div style={{
-                  width: 64, height: 64, borderRadius: 32, display: 'flex',
-                  alignItems: 'center', justifyContent: 'center',
-                  background: 'rgba(56,189,248,0.15)', color: COL_TEAM_OPP,
-                  fontSize: 26, fontWeight: 700,
-                }}>{opponentInitials}</div>
-              )}
-              <div style={{ marginLeft: 18, fontSize: 32, fontWeight: 700, letterSpacing: 1 }}>
+              <div style={{
+                width: 64, height: 64, borderRadius: 32, display: 'flex',
+                alignItems: 'center', justifyContent: 'center',
+                background: 'rgba(56,189,248,0.15)',
+                border: `2px solid ${COL_TEAM_OPP}`,
+                color: COL_TEAM_OPP,
+                fontSize: 24, fontWeight: 700, letterSpacing: 1,
+              }}>
+                {opponentInitials}
+              </div>
+              <div style={{ display: 'flex', marginLeft: 18, fontSize: 32, fontWeight: 700, letterSpacing: 1, color: 'white' }}>
                 {truncate((match.opponent || 'OPPONENT').toUpperCase(), 32)}
               </div>
             </div>
-            <div style={{ fontFamily: '"InterBlack"', fontSize: 56, color: COL_TEAM_OPP, letterSpacing: 1 }}>
+            <div style={{ display: 'flex', fontFamily: '"InterBlack"', fontSize: 56, color: COL_TEAM_OPP, letterSpacing: 1 }}>
               {match.opponent_score || '—'}
             </div>
           </div>
