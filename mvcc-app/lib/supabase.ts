@@ -17,6 +17,7 @@ export type Player = {
 
 export type Match = {
   id: number
+  tournament_id: number
   match_number: number
   date: string
   time: string
@@ -29,6 +30,34 @@ export type Match = {
   potm_player_id: number | null
   is_played: boolean
   playing_12: number[] | null
+}
+
+export type Tournament = {
+  id: number
+  name: string
+  short_name: string
+  format: 'T30' | 'T20' | 'T10'
+  year: number
+  status: 'active' | 'upcoming' | 'completed'
+  team_pin: string | null
+  created_at?: string
+}
+
+// Fetch a single tournament by short_name (e.g. 'T30').
+// Cached per short_name across the SPA so we don't pay the round-trip on every page.
+const tournamentCache = new Map<string, Promise<Tournament | null>>()
+export function fetchTournament(shortName: string): Promise<Tournament | null> {
+  if (!tournamentCache.has(shortName)) {
+    const p: Promise<Tournament | null> = Promise.resolve(
+      supabase
+        .from('tournaments')
+        .select('*')
+        .eq('short_name', shortName)
+        .maybeSingle()
+    ).then(({ data }) => (data as Tournament | null) ?? null)
+    tournamentCache.set(shortName, p)
+  }
+  return tournamentCache.get(shortName)!
 }
 
 export type Performance = {
