@@ -83,22 +83,25 @@ function fmtOvers(o: number): string {
 }
 
 export async function GET(
-  _req: Request,
+  req: Request,
   ctx: { params: Promise<{ matchId: string }> },
 ) {
   try {
-    return await renderCard(ctx)
+    return await renderCard(req, ctx)
   } catch (err) {
     console.error('[match-card] render failed', err)
     const msg = err instanceof Error ? err.message : String(err)
-    return new Response(JSON.stringify({ error: msg }, null, 2), {
+    return new Response(JSON.stringify({ error: msg, stack: err instanceof Error ? err.stack : undefined }, null, 2), {
       status: 500,
       headers: { 'content-type': 'application/json' },
     })
   }
 }
 
-async function renderCard(ctx: { params: Promise<{ matchId: string }> }) {
+async function renderCard(req: Request, ctx: { params: Promise<{ matchId: string }> }) {
+  const url = new URL(req.url)
+  const diag = url.searchParams.get('diag') === '1'
+
   const { matchId } = await ctx.params
   const id = parseInt(matchId)
   if (!id || isNaN(id)) {
@@ -158,6 +161,25 @@ async function renderCard(ctx: { params: Promise<{ matchId: string }> }) {
     .slice(0, 3)
 
   const potmPlayer = match.potm_player_id ? playerById.get(match.potm_player_id) : null
+
+  // ── DIAG MODE — return JSON to confirm Supabase data is reaching us ──
+  if (diag) {
+    return new Response(JSON.stringify({
+      match,
+      mvccBatters: mvccBatters.map(b => ({ ...b, name: playerById.get(b.player_id)?.short_name })),
+      mvccBowlers: mvccBowlers.map(b => ({ ...b, name: playerById.get(b.player_id)?.short_name })),
+      oppBatters,
+      oppBowlers,
+      potm: potmPlayer?.short_name,
+      logos: {
+        mvcc: '/mavericks-logo.jpeg',
+        opponent: getOpponentLogo(match.opponent),
+      },
+    }, null, 2), {
+      status: 200,
+      headers: { 'content-type': 'application/json' },
+    })
+  }
 
   // ── Fonts ───────────────────────────────────────────────────
   // If any font fetch fails, we still render — next/og falls back to a system font.
@@ -257,8 +279,9 @@ async function renderCard(ctx: { params: Promise<{ matchId: string }> }) {
                   fontSize: 28, fontWeight: 700,
                 }}>MV</div>
               )}
-              <div style={{ marginLeft: 18, fontSize: 32, fontWeight: 700, letterSpacing: 1 }}>
-                MAVERICKS CC <span style={{ color: COL_MUTED, marginLeft: 6 }}>MVCC</span>
+              <div style={{ marginLeft: 18, display: 'flex', alignItems: 'baseline' }}>
+                <div style={{ fontSize: 32, fontWeight: 700, letterSpacing: 1, color: 'white' }}>MAVERICKS CC</div>
+                <div style={{ fontSize: 28, fontWeight: 700, letterSpacing: 1, color: COL_MUTED, marginLeft: 10 }}>MVCC</div>
               </div>
             </div>
             <div style={{ fontFamily: '"InterBlack"', fontSize: 56, color: COL_TEAM_MM, letterSpacing: 1 }}>
@@ -385,9 +408,10 @@ async function renderCard(ctx: { params: Promise<{ matchId: string }> }) {
       width: 1080,
       height: 1080,
       fonts,
-      // Cache aggressively at the edge — same matchId+data produces same image.
+      // Caching is OFF while we stabilize the renderer. A bad render gets stuck
+      // serving 0-byte images otherwise. Re-enable once the route is reliable.
       headers: {
-        'cache-control': 'public, max-age=60, s-maxage=300, stale-while-revalidate=600',
+        'cache-control': 'no-store',
       },
     },
   )
