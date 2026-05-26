@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { supabase, fetchTournament, Player, Match, Availability, AvailabilityStatus } from '@/lib/supabase'
 import { calculatePoints } from '@/lib/points'
 import { parseCricClubCSV } from '@/lib/parseCSV'
+import { emailForShortName } from '@/lib/playerEmails'
 import Nav from '@/components/Nav'
 
 const ADMIN_EMAILS = [
@@ -154,6 +155,34 @@ export default function AdminPage() {
     if (availMatchId) loadAvailability(availMatchId)
     else { setAvailRows([]); setPlaying12([]) }
   }, [availMatchId])
+
+  // Manual override — admin can set a player's availability directly
+  // (used mainly for Naveen who has no Google email registered).
+  async function handleOverrideAvailability(playerId: number, nextStatus: AvailabilityStatus | null) {
+    if (!availMatchId) return
+    if (nextStatus === null) {
+      // Clear the override entirely.
+      await supabase
+        .from('availability')
+        .delete()
+        .eq('match_id', availMatchId)
+        .eq('player_id', playerId)
+    } else {
+      await supabase
+        .from('availability')
+        .upsert(
+          {
+            match_id: availMatchId,
+            player_id: playerId,
+            status: nextStatus,
+            note: 'Set by admin',
+            submitted_at: new Date().toISOString(),
+          },
+          { onConflict: 'match_id,player_id' },
+        )
+    }
+    await loadAvailability(availMatchId)
+  }
 
   async function handleSavePlaying12() {
     if (!availMatchId) return
@@ -873,6 +902,7 @@ export default function AdminPage() {
                 onSave={handleSavePlaying12}
                 saving={p12Saving}
                 saved={p12Saved}
+                onOverride={handleOverrideAvailability}
               />
             </motion.div>
           )}
@@ -887,7 +917,7 @@ export default function AdminPage() {
 // ───────────────────────────────────────────────────────────────
 
 function AvailabilityPanel({
-  players, matches, matchId, setMatchId, rows, loading, playing12, setPlaying12, onSave, saving, saved,
+  players, matches, matchId, setMatchId, rows, loading, playing12, setPlaying12, onSave, saving, saved, onOverride,
 }: {
   players: Player[]
   matches: Match[]
@@ -900,6 +930,7 @@ function AvailabilityPanel({
   onSave: () => void
   saving: boolean
   saved: boolean
+  onOverride: (playerId: number, status: AvailabilityStatus | null) => Promise<void>
 }) {
   const today = new Date().toISOString().slice(0, 10)
   const upcoming = matches.filter(m => m.date >= today || !m.is_played)
@@ -982,32 +1013,97 @@ function AvailabilityPanel({
                 {players.map(p => {
                   const r = byPlayer.get(p.id)
                   const meta = r ? STATUS_META[r.status] : NO_RESPONSE_META
+                  const email = emailForShortName(p.short_name)
+                  const isNaveen = !email // Naveen has no Google email registered yet
                   return (
-                    <div key={p.id} className="px-5 py-3 flex items-start gap-3"
+                    <div key={p.id} className="px-5 py-3"
                       style={{ borderBottom: '1px solid var(--border)' }}>
-                      <span style={{ fontSize: 18, lineHeight: 1.2 }}>{meta.emoji}</span>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium text-sm" style={{ color: 'var(--text)' }}>{p.short_name}</span>
-                          <span className="font-mono text-[10px]" style={{ color: 'var(--text3)' }}>
-                            · {p.team === 'MM' ? 'MM' : 'HB'}
-                          </span>
-                          {p.is_external && (
-                            <span className="font-mono" style={{ fontSize: 9, padding: '1px 4px', borderRadius: 4, background: 'rgba(245,158,11,0.12)', color: 'var(--gold)', border: '1px solid rgba(245,158,11,0.3)' }}>EXT</span>
+                      <div className="flex items-start gap-3">
+                        <span style={{ fontSize: 18, lineHeight: 1.2 }}>{meta.emoji}</span>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-medium text-sm" style={{ color: 'var(--text)' }}>{p.short_name}</span>
+                            <span className="font-mono text-[10px]" style={{ color: 'var(--text3)' }}>
+                              · {p.team === 'MM' ? 'MM' : 'HB'}
+                            </span>
+                            {p.is_external && (
+                              <span className="font-mono" style={{ fontSize: 9, padding: '1px 4px', borderRadius: 4, background: 'rgba(245,158,11,0.12)', color: 'var(--gold)', border: '1px solid rgba(245,158,11,0.3)' }}>EXT</span>
+                            )}
+                          </div>
+                          {email && (
+                            <div className="font-mono text-[10px] mt-0.5 truncate" style={{ color: 'var(--text3)' }}>
+                              {email}
+                            </div>
+                          )}
+                          {isNaveen && (
+                            <div className="font-mono text-[10px] mt-0.5" style={{ color: 'var(--gold)' }}>
+                              ⚠️ No email registered — admin must set availability manually.
+                            </div>
+                          )}
+                          {!r && email && (
+                            <div className="font-mono text-[10px] mt-0.5" style={{ color: 'var(--text3)' }}>
+                              Not signed in yet
+                            </div>
+                          )}
+                          {r?.note && (
+                            <div className="text-xs mt-1" style={{ color: 'var(--text2)' }}>&ldquo;{r.note}&rdquo;</div>
                           )}
                         </div>
-                        {r?.note && (
-                          <div className="text-xs mt-0.5" style={{ color: 'var(--text2)' }}>“{r.note}”</div>
-                        )}
-                      </div>
-                      <div className="text-right">
-                        <div className="font-mono text-[11px] tracking-widest" style={{ color: meta.color }}>
-                          {meta.label}
-                        </div>
-                        {r?.submitted_at && (
-                          <div className="font-mono text-[10px] mt-0.5" style={{ color: 'var(--text3)' }}>
-                            {new Date(r.submitted_at).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                        <div className="text-right flex-shrink-0">
+                          <div className="font-mono text-[11px] tracking-widest" style={{ color: meta.color }}>
+                            {meta.label}
                           </div>
+                          {r?.submitted_at && (
+                            <div className="font-mono text-[10px] mt-0.5" style={{ color: 'var(--text3)' }}>
+                              {new Date(r.submitted_at).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Inline override row */}
+                      <div className="flex items-center gap-1 mt-2 flex-wrap pl-7">
+                        <span className="font-mono text-[10px] tracking-widest uppercase mr-1" style={{ color: 'var(--text3)' }}>
+                          Override:
+                        </span>
+                        {([
+                          { s: 'available' as AvailabilityStatus, label: '✅', color: 'var(--green)', dim: 'var(--green-dim)', border: 'rgba(74,222,128,0.4)' },
+                          { s: 'tentative' as AvailabilityStatus, label: '🤔', color: 'var(--gold)', dim: 'var(--gold-dim)', border: 'rgba(245,158,11,0.4)' },
+                          { s: 'not_available' as AvailabilityStatus, label: '❌', color: 'var(--red)', dim: 'var(--red-dim)', border: 'rgba(244,63,94,0.4)' },
+                        ]).map(opt => {
+                          const active = r?.status === opt.s
+                          return (
+                            <button
+                              key={opt.s}
+                              onClick={() => onOverride(p.id, opt.s)}
+                              className="px-2 py-1 rounded-md text-xs"
+                              style={{
+                                background: active ? opt.dim : 'rgba(255,255,255,0.04)',
+                                border: `1px solid ${active ? opt.border : 'var(--border)'}`,
+                                color: active ? opt.color : 'var(--text2)',
+                                cursor: 'pointer',
+                                transition: 'background 200ms ease, border-color 200ms ease',
+                              }}
+                              title={`Set ${p.short_name} to ${opt.s}`}
+                            >
+                              {opt.label}
+                            </button>
+                          )
+                        })}
+                        {r && (
+                          <button
+                            onClick={() => onOverride(p.id, null)}
+                            className="px-2 py-1 rounded-md font-mono text-[10px] tracking-widest uppercase"
+                            style={{
+                              background: 'rgba(255,255,255,0.04)',
+                              border: '1px solid var(--border)',
+                              color: 'var(--text3)',
+                              cursor: 'pointer',
+                            }}
+                            title={`Clear ${p.short_name}'s response`}
+                          >
+                            Clear
+                          </button>
                         )}
                       </div>
                     </div>

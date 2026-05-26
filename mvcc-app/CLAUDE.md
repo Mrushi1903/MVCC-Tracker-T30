@@ -44,8 +44,8 @@ A multi-tournament cricket tracker for **Mavericks Cricket Club**. Two internal 
     ```ts
     const ADMIN_EMAILS = [
       'mrushireddy2232@gmail.com',  // Rushi
-      'viswakasu@gmail.com',        // Viswa — HB Captain
-      'rohitmaddipati@gmail.com',   // Rohith — HB VC
+      'viswakasu@gmail.com',        // Viswa — MVCC T30 Captain
+      'rohitmaddipati@gmail.com',   // Rohith — MVCC T30 Vice-Captain
     ]
     ```
 
@@ -76,7 +76,7 @@ Amar (Amarendra Nuvvala), Gani ((gani)siva Ganesh Asodi #18), Mahendra (Mahender
 ### 🔵 Hell Boys (HB)
 Akshay (Akshay Raju #18), Hemanth (Hemanth Kasa #12), Karthik (Karthik Balakrishna #15), Koushik (Kousik Dhanekula #6), Naveen (Naveen Kumar Peddi), Nikhil (Nikhil Pasula), Rushi (Rushi Vardan Reddy Maddi #3), Saran (Saran Damacharla #14), Siddarth (Siddharth Chawla), Suman (Suman Reddy Gaddam), Viswa (Viswanath Kasu).
 
-> **Team leadership:** Viswa is HB Captain, Rohith is HB VC. Both are admins. MM captaincy not formally recorded yet.
+> **MVCC T30 squad leadership:** Viswa is **Captain** and Rohith is **Vice-Captain** for the full MVCC T30 squad (the team that plays in MCA league matches against external clubs). Both are admins. The internal MM vs HB split is a points-tracking grouping only — it does *not* imply separate captaincies for those internal sub-teams.
 
 ---
 
