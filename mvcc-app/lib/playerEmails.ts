@@ -16,7 +16,7 @@ export const PLAYER_EMAILS: Record<string, string> = {
   'raheelrc2020@gmail.com':            'Raheel',
   'karthikbalakrishna15@gmail.com':    'Karthik',
   'rpathipatis18@gmail.com':           'Ravi',
-  'rohithmaddipati23@gmail.com':       'Rohith',
+  'rohitmaddipati@gmail.com':          'Rohith',
   'pasula.nikhilreddy6@gmail.com':     'Nikhil',
   'kousik200130@gmail.com':            'Koushik',
   'chowdary4244@gmail.com':            'Rupendra',
