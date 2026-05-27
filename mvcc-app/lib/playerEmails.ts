@@ -4,9 +4,8 @@
 // Lookups must always be lowercase — emails are case-insensitive but the map
 // is keyed on lowercase strings.
 //
-// Naveen (Naveen Kumar Peddi) has no email registered yet. The admin panel
-// surfaces a manual-override capability for any player so captains can set
-// availability on his behalf.
+// The admin panel still surfaces a manual-override capability for every player
+// so captains can set availability on a player's behalf when needed.
 export const PLAYER_EMAILS: Record<string, string> = {
   'rahulmenon614@gmail.com':           'Rahul',
   'viswakasu@gmail.com':               'Viswa',
@@ -29,6 +28,7 @@ export const PLAYER_EMAILS: Record<string, string> = {
   'siddharthchawla827@gmail.com':      'Siddarth',
   'deepnuvvala@gmail.com':             'Amar',
   'ksm7692@gmail.com':                 'Manoj',
+  'peddinaveenkumargoud@gmail.com':    'Naveen',
 }
 
 /**
