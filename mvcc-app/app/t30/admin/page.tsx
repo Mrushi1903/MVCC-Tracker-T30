@@ -191,58 +191,50 @@ export default function AdminPage() {
     // 1) Update match playing_12 array
     await supabase.from('matches').update({ playing_12: playing12 }).eq('id', availMatchId)
 
-    // 2) Award +10 availability_points to "available but not picked" players.
-    //    First clear any prior availability_points for this match's performances.
-    await supabase
-      .from('performances')
-      .update({ availability_points: 0 })
-      .eq('match_id', availMatchId)
-
+    // 2) Reconcile the +10 availability bonus for every performance in this
+    //    match. "Available but not picked in the Playing-12" earns +10; anyone
+    //    picked (or not available) earns 0. We recompute bonus_points and
+    //    total_points from scratch each time so un-benching a player actually
+    //    removes the +10 from his total — not just from the availability column.
+    //    bonus_points = POTM(30 if is_potm) + availability; MVP isn't stored per
+    //    match. Recomputing from is_potm self-heals any previously corrupted bonus.
     const availableIds = availRows
       .filter(r => r.status === 'available')
       .map(r => r.player_id)
-    const benchedAvailable = availableIds.filter(id => !playing12.includes(id))
+    const benched = new Set(availableIds.filter(id => !playing12.includes(id)))
 
-    if (benchedAvailable.length > 0) {
-      // Fetch existing rows so we can preserve their stats and just add +10.
-      const { data: existing } = await supabase
+    const { data: existing } = await supabase
+      .from('performances')
+      .select('*')
+      .eq('match_id', availMatchId)
+
+    const seen = new Set<number>()
+    for (const ex of existing ?? []) {
+      seen.add(ex.player_id)
+      const newAvail = benched.has(ex.player_id) ? 10 : 0
+      const newBonus = (ex.is_potm ? 30 : 0) + newAvail
+      const newTotal =
+        (ex.batting_points ?? 0) + (ex.bowling_points ?? 0) + (ex.fielding_points ?? 0) + newBonus
+      if (newAvail === (ex.availability_points ?? 0) && newTotal === (ex.total_points ?? 0)) continue
+      await supabase
         .from('performances')
-        .select('*')
-        .eq('match_id', availMatchId)
-        .in('player_id', benchedAvailable)
-      type ExPerf = NonNullable<typeof existing>[number]
-      const existingByPlayer = new Map<number, ExPerf>(
-        (existing ?? []).map(r => [r.player_id, r])
-      )
+        .update({ availability_points: newAvail, bonus_points: newBonus, total_points: newTotal })
+        .eq('id', ex.id)
+    }
 
-      for (const pid of benchedAvailable) {
-        const ex = existingByPlayer.get(pid)
-        if (ex) {
-          // Preserve all stats. Recalc total with the new availability bonus.
-          const newBonus = (ex.bonus_points ?? 0) + 10
-          const newTotal = (ex.batting_points ?? 0) + (ex.bowling_points ?? 0) + (ex.fielding_points ?? 0) + newBonus
-          await supabase
-            .from('performances')
-            .update({
-              availability_points: 10,
-              bonus_points: newBonus,
-              total_points: newTotal,
-            })
-            .eq('id', ex.id)
-        } else {
-          // No performance row yet → create a zeroed one with the +10 bonus.
-          await supabase.from('performances').insert({
-            match_id: availMatchId,
-            player_id: pid,
-            runs: 0, balls_faced: 0,
-            overs_bowled: 0, runs_conceded: 0, wickets: 0,
-            catches: 0, runout_fielder: 0, runout_helper: 0, stumpings: 0,
-            is_potm: false,
-            batting_points: 0, bowling_points: 0, fielding_points: 0,
-            bonus_points: 10, availability_points: 10, total_points: 10,
-          })
-        }
-      }
+    // Benched-available players with no performance row yet → create a zeroed +10 row.
+    for (const pid of benched) {
+      if (seen.has(pid)) continue
+      await supabase.from('performances').insert({
+        match_id: availMatchId,
+        player_id: pid,
+        runs: 0, balls_faced: 0,
+        overs_bowled: 0, runs_conceded: 0, wickets: 0,
+        catches: 0, runout_fielder: 0, runout_helper: 0, stumpings: 0,
+        is_potm: false,
+        batting_points: 0, bowling_points: 0, fielding_points: 0,
+        bonus_points: 10, availability_points: 10, total_points: 10,
+      })
     }
 
     setP12Saving(false)
@@ -932,8 +924,9 @@ function AvailabilityPanel({
   saved: boolean
   onOverride: (playerId: number, status: AvailabilityStatus | null) => Promise<void>
 }) {
-  const today = new Date().toISOString().slice(0, 10)
-  const upcoming = matches.filter(m => m.date >= today || !m.is_played)
+  // Admins need every match here — including completed ones — so they can
+  // review or correct availability / Playing-12 after a match has been played.
+  const upcoming = matches
 
   const byPlayer = new Map<number, Availability>()
   for (const r of rows) byPlayer.set(r.player_id, r)
@@ -945,6 +938,10 @@ function AvailabilityPanel({
   }
 
   const availablePlayers = players.filter(p => byPlayer.get(p.id)?.status === 'available')
+
+  // Once a match is played, surface a PLAYED / DID NOT PLAY badge per player
+  // (derived from the saved Playing-12) so admins can review the XI afterwards.
+  const isPlayed = !!matches.find(m => m.id === matchId)?.is_played
 
   function toggleP12(id: number) {
     if (playing12.includes(id)) {
@@ -1028,6 +1025,12 @@ function AvailabilityPanel({
                             </span>
                             {p.is_external && (
                               <span className="font-mono" style={{ fontSize: 9, padding: '1px 4px', borderRadius: 4, background: 'rgba(245,158,11,0.12)', color: 'var(--gold)', border: '1px solid rgba(245,158,11,0.3)' }}>EXT</span>
+                            )}
+                            {isPlayed && playing12.includes(p.id) && (
+                              <span className="font-mono" style={{ fontSize: 9, padding: '1px 4px', borderRadius: 4, background: 'rgba(74,222,128,0.12)', color: 'var(--green)', border: '1px solid rgba(74,222,128,0.35)' }}>PLAYED</span>
+                            )}
+                            {isPlayed && !playing12.includes(p.id) && (
+                              <span className="font-mono" style={{ fontSize: 9, padding: '1px 4px', borderRadius: 4, background: 'rgba(255,255,255,0.05)', color: 'var(--text3)', border: '1px solid var(--border)' }}>DID NOT PLAY</span>
                             )}
                           </div>
                           {email && (
