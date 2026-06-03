@@ -223,7 +223,7 @@ export default function AdminPage() {
     }
 
     // Benched-available players with no performance row yet → create a zeroed +10 row.
-    for (const pid of benched) {
+    for (const pid of Array.from(benched)) {
       if (seen.has(pid)) continue
       await supabase.from('performances').insert({
         match_id: availMatchId,
