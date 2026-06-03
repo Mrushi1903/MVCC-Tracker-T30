@@ -99,6 +99,7 @@ const PLAYER_MAP: Record<string, string> = {
   'rohith maddipati': 'Rohith',
   'rohith m': 'Rohith',
   'kousik dhanekula': 'Koushik',
+  'koushik dhanekula': 'Koushik',
   'naresh sunder': 'Naresh',
   'sai manoj kagolanu': 'Manoj',
   'mahender bureddy': 'Mahendra',
@@ -115,12 +116,32 @@ const PLAYER_MAP: Record<string, string> = {
   'vamsi krishna koneru': 'Vamsi',
 }
 
+// CricClub writes names inconsistently across columns: nickname parens
+// "(Gani)Siva...", jersey suffixes "#18", truncated surnames "Ganesh A".
+// Normalize before matching so dismissal/helper credits resolve reliably.
+function normalizeName(s: string): string {
+  return (s ?? '')
+    .toLowerCase()
+    .replace(/#\d+/g, ' ')     // jersey numbers, e.g. "#18"
+    .replace(/[()]/g, ' ')     // nickname parens, e.g. "(Gani)"
+    .replace(/[^a-z\s]/g, ' ') // any remaining punctuation
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
 function findShortName(name: string): string | null {
   if (!name) return null
-  const lower = name.toLowerCase().trim()
-  if (PLAYER_MAP[lower]) return PLAYER_MAP[lower]
+  const lower = normalizeName(name)
+  if (!lower) return null
+  // Exact match on normalized key.
   for (const [key, val] of Object.entries(PLAYER_MAP)) {
-    if (lower.includes(key) || key.includes(lower)) return val
+    if (normalizeName(key) === lower) return val
+  }
+  // Substring either direction — handles short forms ("Rohith M") and
+  // truncated surnames ("...Ganesh A" for "...Ganesh Asodi").
+  for (const [key, val] of Object.entries(PLAYER_MAP)) {
+    const nk = normalizeName(key)
+    if (lower.includes(nk) || nk.includes(lower)) return val
   }
   return null
 }
