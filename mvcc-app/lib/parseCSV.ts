@@ -267,10 +267,14 @@ export function parseCricClubCSV(csvText: string): ParsedMatch {
     if (lower.includes('mavericks cricket club') && lower.includes('bowling')) {
       section = 'mvcc_bowling'; continue
     }
-    if (!lower.includes('mavericks') && lower.includes('batting') && lower.includes('cc')) {
+    // Opponent sections: any "... Batting"/"... Bowling" header that isn't MVCC's.
+    // Don't require "cc" in the name — opponents like "Michigan Warriors MIWA"
+    // have no "CC", which previously caused their batting (and our catch/stumping
+    // credits) to be skipped entirely.
+    if (!lower.includes('mavericks') && lower.includes('batting')) {
       section = 'opp_batting'; lastBattingSide = 'opponent'; continue
     }
-    if (!lower.includes('mavericks') && lower.includes('bowling') && lower.includes('cc')) {
+    if (!lower.includes('mavericks') && lower.includes('bowling')) {
       section = 'opp_bowling'; continue
     }
     if (lower.startsWith('fall of wickets') || lower === 'fall of wickets,') {
