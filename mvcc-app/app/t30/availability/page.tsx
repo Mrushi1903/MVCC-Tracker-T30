@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
-import { supabase, Player, Match, Availability, AvailabilityStatus } from '@/lib/supabase'
+import { supabase, Player, Match, Availability, AvailabilityStatus, matchLabel } from '@/lib/supabase'
 import { lookupPlayerByEmail } from '@/lib/playerEmails'
 import { getOpponentLogo, getOpponentInitials } from '@/lib/opponentLogos'
 import Nav from '@/components/Nav'
@@ -429,7 +429,7 @@ function MatchPicker({
             <OpponentLogo opponent={m.opponent} />
             <div className="flex-1 min-w-0">
               <div className="font-medium text-sm flex items-center gap-2 flex-wrap" style={{ color: 'var(--text)' }}>
-                <span>Match {m.match_number}</span>
+                <span>{matchLabel(m)}</span>
                 <span style={{ color: 'var(--text3)' }}>·</span>
                 <span style={{ color: 'var(--text)' }}>vs {m.opponent}</span>
               </div>
@@ -523,7 +523,7 @@ function StatusPicker({
 }) {
   return (
     <StepShell>
-      <StepHeader label="Step 2" title={`Match ${match.match_number} vs ${match.opponent}`} />
+      <StepHeader label="Step 2" title={`${matchLabel(match)} vs ${match.opponent}`} />
       <p className="font-mono text-[11px] mb-4" style={{ color: 'var(--text3)' }}>
         {formatMatchLine(match.date, match.time, match.ground)}
       </p>
@@ -608,7 +608,7 @@ function ConfirmCard({
       <StepHeader label="Step 3" title="Confirm" />
       <div className="rounded-xl p-4" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid var(--border2)' }}>
         <Row label="Player" value={playerShortName} />
-        <Row label="Match" value={`#${match.match_number} vs ${match.opponent}`} />
+        <Row label="Match" value={`${match.stage?.trim() || `#${match.match_number}`} vs ${match.opponent}`} />
         <Row label="When" value={formatMatchLine(match.date, match.time, match.ground)} />
         <Row label="Status" value={meta.label} color={meta.color} />
         {note.trim() && <Row label="Note" value={note.trim()} />}
@@ -656,7 +656,7 @@ function DoneCard({
           GOT IT, {playerShortName.toUpperCase()}
         </div>
         <p className="font-mono text-xs mb-2" style={{ color: 'var(--text3)' }}>
-          Recorded as <span style={{ color: meta.color }}>{meta.label}</span> for Match #{match.match_number} vs {match.opponent}.
+          Recorded as <span style={{ color: meta.color }}>{meta.label}</span> for {match.stage?.trim() || `Match #${match.match_number}`} vs {match.opponent}.
         </p>
         <p className="font-mono text-[11px] mb-6" style={{ color: 'var(--text3)' }}>
           Your captain has been notified. You can update this anytime before match day.

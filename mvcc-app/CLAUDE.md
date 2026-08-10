@@ -124,9 +124,10 @@ Akshay (Akshay Raju #18), Hemanth (Hemanth Kasa #12), Karthik (Karthik Balakrish
 ```
 tournaments         (id, name, short_name, format, year, status, team_pin)
 players             (id, name, short_name, team, jersey_number, cc_player_id, is_external)
-matches             (id, tournament_id, match_number, date, time, opponent,
+matches             (id, tournament_id, match_number, stage, date, time, opponent,
                      opponent_short, ground, is_played, result, mvcc_score,
                      opponent_score, potm_player_id, playing_12 int[])
+                     -- stage: knockout label e.g. 'Quarter Final'; null for league games
 performances        (id, match_id, player_id,
                      runs, balls_faced, fours, sixes,
                      how_out, fielder, bowler_name,
@@ -165,6 +166,12 @@ All tables: RLS enabled, public SELECT, permissive write (admin gating enforced 
                                   opponent_batting fielder/bowler,
                                   opponent_bowling wides/no_balls/dot_balls,
                                   fall_of_wickets, match_extras tables
+005_add_match9_falcons.sql     — Match 9 (Michigan International CA Falcons,
+                                  MICF, Aug 8 2026, Lyon Oaks) into T30 schedule
+006_add_match10_kingsxi.sql    — matches.stage column + Quarter Final
+                                  (Farmington CC Kings XI, FCXI, Aug 15 2026,
+                                  Jayne) into T30 schedule; UI shows "Quarter
+                                  Final" instead of "Match 10"
 ```
 
 Migration 001 was the initial bootstrap and is not in the repo — schema was created in the Supabase dashboard before migrations were tracked.
@@ -183,6 +190,8 @@ Migration 001 was the initial bootstrap and is not in the repo — schema was cr
 | 6 | Jul 11 | 2:30 PM | The Squad Cricket Club | Sterling Heights |
 | 7 | Jul 18 | 9:00 AM | Royal Bengals CC | Lyon Oaks |
 | 8 | Jul 25 | 9:00 AM | Motown CC | Sterling Heights |
+| 9 | Aug 8 | 9:00 AM | Michigan International CA Falcons | Lyon Oaks |
+| 10 | Aug 15 | 9:00 AM | Farmington CC Kings XI (Quarter Final) | Jayne |
 
 ---
 

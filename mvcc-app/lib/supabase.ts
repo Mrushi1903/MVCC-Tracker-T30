@@ -19,6 +19,7 @@ export type Match = {
   id: number
   tournament_id: number
   match_number: number
+  stage: string | null   // knockout label, e.g. "Quarter Final"; null for league games
   date: string
   time: string
   opponent: string
@@ -30,6 +31,26 @@ export type Match = {
   potm_player_id: number | null
   is_played: boolean
   playing_12: number[] | null
+}
+
+// Display helpers so the UI reads "Quarter Final" for knockout games while
+// league games keep their "Match N" / "#N" / "MN" / "N" forms unchanged.
+type MatchLabelable = Pick<Match, 'match_number' | 'stage'>
+// Full label: "Quarter Final" or "Match 10".
+export function matchLabel(m: MatchLabelable): string {
+  return m.stage?.trim() || `Match ${m.match_number}`
+}
+// Compact badge for tight spots: "QF" or "10".
+export function matchBadge(m: MatchLabelable): string {
+  const s = m.stage?.trim()
+  if (s) return s.split(/\s+/).map(w => w[0]?.toUpperCase() ?? '').join('')
+  return String(m.match_number)
+}
+// Short chart/dot label: "QF" or "M10".
+export function matchLabelShort(m: MatchLabelable): string {
+  const s = m.stage?.trim()
+  if (s) return s.split(/\s+/).map(w => w[0]?.toUpperCase() ?? '').join('')
+  return `M${m.match_number}`
 }
 
 export type Tournament = {

@@ -21,7 +21,7 @@ const PointsChart = dynamic(() => import('./PointsChart'), {
     </div>
   ),
 })
-import { supabase, fetchTournament, Player, Match, Performance } from '@/lib/supabase'
+import { supabase, fetchTournament, Player, Match, Performance, matchLabel, matchLabelShort } from '@/lib/supabase'
 import { calculatePoints, getStrikeRate, getEconomy } from '@/lib/points'
 import { getPlayerImage } from '@/lib/playerImages'
 import Nav from '@/components/Nav'
@@ -127,7 +127,7 @@ export default function PlayerProfilePage({ params }: { params: Promise<{ slug: 
       chartPoints.push({
         match_number: perf.match?.match_number ?? 0,
         pts: pts.total_points,
-        label: `M${perf.match?.match_number} vs ${perf.match?.opponent_short || perf.match?.opponent?.split(' ')[0] || '?'}`,
+        label: `${perf.match ? matchLabelShort(perf.match) : 'M?'} vs ${perf.match?.opponent_short || perf.match?.opponent?.split(' ')[0] || '?'}`,
       })
     }
 
@@ -457,7 +457,7 @@ export default function PlayerProfilePage({ params }: { params: Promise<{ slug: 
                         >
                           <div>
                             <div className="font-mono text-xs" style={{ color: 'var(--text3)' }}>
-                              Match {perf.match?.match_number} · {dateStr}
+                              {perf.match ? matchLabel(perf.match) : 'Match ?'} · {dateStr}
                             </div>
                             <div className="font-medium text-sm mt-0.5" style={{ color: 'var(--text)' }}>
                               vs {perf.match?.opponent}
@@ -626,7 +626,7 @@ function FormGuide({ matches, perfs, color }: { matches: Match[]; perfs: MatchPe
           <motion.div
             key={m.id}
             variants={{ hidden: { opacity: 0, scale: 0.85 }, show: { opacity: 1, scale: 1, transition: { type: 'spring', stiffness: 250, damping: 18 } } }}
-            title={`Match ${m.match_number} vs ${m.opponent_short || m.opponent.split(' ')[0]}: ${pts === null ? 'Did not play' : `${pts} pts (${cat.label})`}`}
+            title={`${matchLabel(m)} vs ${m.opponent_short || m.opponent.split(' ')[0]}: ${pts === null ? 'Did not play' : `${pts} pts (${cat.label})`}`}
             className="flex items-center gap-2 px-3 py-2 rounded-xl"
             style={{
               background: 'rgba(255,255,255,0.03)',
@@ -636,7 +636,7 @@ function FormGuide({ matches, perfs, color }: { matches: Match[]; perfs: MatchPe
           >
             <span style={{ fontSize: 18 }}>{cat.emoji}</span>
             <div>
-              <div className="font-mono text-[10px]" style={{ color: 'var(--text3)' }}>M{m.match_number}</div>
+              <div className="font-mono text-[10px]" style={{ color: 'var(--text3)' }}>{matchLabelShort(m)}</div>
               <div className="font-mono text-xs" style={{ color: pts === null ? 'var(--text3)' : 'var(--text)' }}>
                 {pts === null ? '—' : `${pts}p`}
               </div>

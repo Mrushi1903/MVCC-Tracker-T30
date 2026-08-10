@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { supabase, fetchTournament, Player, Match, Availability, AvailabilityStatus } from '@/lib/supabase'
+import { supabase, fetchTournament, Player, Match, Availability, AvailabilityStatus, matchLabel } from '@/lib/supabase'
 import { calculatePoints } from '@/lib/points'
 import { parseCricClubCSV } from '@/lib/parseCSV'
 import { emailForShortName } from '@/lib/playerEmails'
@@ -579,7 +579,7 @@ export default function AdminPage() {
                         cursor: 'pointer',
                       }}>
                       <div className="font-display text-lg" style={{ color: selectedMatch === m.id ? 'var(--mm)' : 'var(--text)' }}>
-                        Match {m.match_number}
+                        {matchLabel(m)}
                       </div>
                       <div className="font-mono text-xs mt-0.5" style={{ color: 'var(--text3)' }}>
                         vs {m.opponent.split(' ').slice(0, 2).join(' ')}
@@ -974,7 +974,7 @@ function AvailabilityPanel({
                 }}
               >
                 <div className="font-display text-lg" style={{ color: active ? 'var(--accent)' : 'var(--text)' }}>
-                  Match {m.match_number}
+                  {matchLabel(m)}
                 </div>
                 <div className="font-mono text-xs mt-0.5" style={{ color: 'var(--text3)' }}>
                   vs {m.opponent.split(' ').slice(0, 2).join(' ')}

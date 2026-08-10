@@ -12,6 +12,8 @@ export const OPPONENT_LOGOS: Record<string, string> = {
   'The Squad Cricket Club':               '/logos/Opponents/The%20Squad%20Cricket%20Club%20TSXI.jpeg',
   'Royal Bengals CC':                     '/logos/Opponents/Royal%20Bengals%20CC%20RBCC.jpg',
   'Motown CC':                            '/logos/Opponents/Motown%20CC%20MOCC.jpeg',
+  'Michigan International CA Falcons':    '/logos/Opponents/Michigan%20International%20CA%20Falcons%20MICF.jpeg',
+  'Farmington CC Kings XI':               '/logos/Opponents/Farmington%20CC%20Kings%20XI%20FCXI.jpeg',
 }
 
 export function getOpponentLogo(opponent: string | null | undefined): string | null {

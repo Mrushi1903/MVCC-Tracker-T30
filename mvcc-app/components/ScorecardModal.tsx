@@ -8,6 +8,7 @@ import {
   Match, Performance, Player,
   OpponentBatting, OpponentBowling,
   FallOfWicket, MatchExtras,
+  matchLabel,
 } from '@/lib/supabase'
 import { getPlayerImage } from '@/lib/playerImages'
 import { formatDismissal } from '@/lib/parseCSV'
@@ -175,7 +176,7 @@ export default function ScorecardModal({ match, onClose }: { match: Match; onClo
           <div className="flex items-start justify-between mb-4">
             <div>
               <div className="font-mono text-xs tracking-[3px] uppercase mb-1" style={{ color: 'var(--text3)' }}>
-                T30 2026 · Match {match.match_number} · {dateStr}
+                T30 2026 · {matchLabel(match)} · {dateStr}
               </div>
               <div className="font-display text-2xl tracking-wider" style={{ color: 'var(--text)' }}>
                 MVCC <span style={{ color: 'var(--text3)' }}>vs</span> {match.opponent}

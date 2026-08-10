@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { Match, supabase } from '@/lib/supabase'
+import { Match, supabase, matchBadge } from '@/lib/supabase'
 import { getPlayerImage } from '@/lib/playerImages'
 import ScorecardModal from '@/components/ScorecardModal'
 
@@ -77,8 +77,8 @@ export default function ScheduleCard({ match }: { match: Match }) {
 
         <div className="relative flex items-center gap-4">
           <div className="font-display text-4xl w-12 text-center flex-shrink-0"
-            style={{ color: match.is_played ? statusColor : 'var(--border2)', opacity: match.is_played ? 1 : 0.6 }}>
-            {match.match_number}
+            style={{ color: match.is_played ? statusColor : 'var(--border2)', opacity: match.is_played ? 1 : 0.6, fontSize: match.stage ? '1.5rem' : undefined }}>
+            {matchBadge(match)}
           </div>
 
           <div className="flex-1 min-w-0">

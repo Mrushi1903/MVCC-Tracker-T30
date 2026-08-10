@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { supabase, Performance, Match } from '@/lib/supabase'
+import { supabase, Performance, Match, matchLabel } from '@/lib/supabase'
 import { getPlayerImage } from '@/lib/playerImages'
 
 type Player = {
@@ -302,7 +302,7 @@ export default function PlayerModal({ player, onClose }: { player: Player; onClo
                   <div className="flex items-start justify-between mb-3">
                     <div>
                       <div className="font-mono text-xs" style={{ color: 'var(--text3)' }}>
-                        Match {perf.match?.match_number} ·{' '}
+                        {perf.match ? matchLabel(perf.match) : 'Match ?'} ·{' '}
                         {(() => {
                           const [y, mo, d] = (perf.match?.date || '').split('-').map(Number)
                           return new Date(y, mo - 1, d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })

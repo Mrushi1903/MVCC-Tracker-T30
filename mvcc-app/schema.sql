@@ -16,6 +16,7 @@ create table players (
 create table matches (
   id serial primary key,
   match_number int not null,
+  stage text,                    -- knockout label e.g. 'Quarter Final'; null for league games
   date date not null,
   time text,
   opponent text not null,
@@ -117,4 +118,6 @@ insert into matches (match_number, date, time, opponent, ground, is_played) valu
 (5, '2026-06-27', '9:00 AM', 'Majestic Lions CC', 'Jayne', false),
 (6, '2026-07-11', '2:30 PM', 'The Squad Cricket Club', 'Sterling Heights', false),
 (7, '2026-07-18', '9:00 AM', 'Royal Bengals CC', 'Lyon Oaks', false),
-(8, '2026-07-25', '9:00 AM', 'Motown CC', 'Sterling Heights', false);
+(8, '2026-07-25', '9:00 AM', 'Motown CC', 'Sterling Heights', false),
+(9, '2026-08-08', '9:00 AM', 'Michigan International CA Falcons', 'Lyon Oaks', false),
+(10, '2026-08-15', '9:00 AM', 'Farmington CC Kings XI', 'Jayne', false);
